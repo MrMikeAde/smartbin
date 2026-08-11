@@ -19,7 +19,7 @@ This document describes the design and modular architectural layers of **SmartBi
 ```
 
 ### 1. SmartBin.Contracts
-- **Responsibilities**: Contains only service contracts/interfaces and generic definitions. It has no dependencies.
+- **Responsibilities**: Contains only service contracts/interfaces, generic definitions, and DTOs. It has no dependencies.
 - **Key Abstractions**:
   - `IFileHasher`: SHA-256 byte-for-byte verification.
   - `ICompressionService`: Abstract compression, decompresion, analysis.
@@ -28,20 +28,22 @@ This document describes the design and modular architectural layers of **SmartBi
   - `IStoragePathProvider`: Resolves the root of the controlled storage area (supports isolation in testing).
   - `IImportService`: Manages importing files safely without deleting original user source.
   - `ICompressionEngine`: Runs atomic compression, evaluation, and verification.
-  - `IStoragePressureMonitor`: Monitors disk pressure and triggers compression pipeline.
+  - `IStoragePressureMonitor`: Monitors total capacity, free space, percentages, and pressure states.
+  - `IOptimizationPlanner`: Deterministic planning of which candidates to compress.
+  - `IOptimizationExecutor`: Orchestrates sequential compression of planned candidates, checking space re-evaluation and cancellation.
   - `IRestoreService`: File restoration.
 
 ### 2. SmartBin.Core
 - **Responsibilities**: Contains pure domain models (`SmartBinItem`), business rules, value objects, and core decision logic.
 - **Key Implementations**:
-  - `ImportService`: Executes safe import steps (calculating original hash, copying, matching copied hash, saving metadata, preserving original file).
-  - `CompressionEngine`: Runs the atomic compression flow:
-    1. Evaluates extension heuristics (`CompressionHeuristics`).
-    2. Compresses original file representation to temporary path.
-    3. Analyzes savings thresholds (minimum 5% space savings and minimum 1024 bytes saved).
-    4. Decompresses temp file and validates SHA-256 hash.
-    5. Swap/commit file representation and update DB metadata.
-  - `CompressionHeuristics`: Static evaluation of commonly already-compressed extensions (`.zip`, `.rar`, `.mp4`, `.png`, etc.) to skip unnecessary CPU cycles.
+  - `ImportService`: Executes safe import steps.
+  - `CompressionEngine`: Runs atomic compression, validation, and swaps.
+  - `CompressionHeuristics`: Evaluates file extensions to skip pre-compressed file formats (`.mp4`, `.zip`, etc.).
+  - `StoragePressurePolicy`: Converts physical drive space metrics into deterministic recommendations.
+  - `CandidateAnalyzer`: Analyzes, ranks, and structures explainable priority scores for all recoverable items.
+  - `OptimizationPlanner`: Sorts candidates by priority score and plans the minimal optimal set of files needed to satisfy a target free space.
+  - `OptimizationExecutor`: Orchestrates plan sequential processing, checking cancellation, and stopping early if targets are satisfied.
+  - `StoragePressureSimulator`: Programs mock overrides to verify different pressure conditions.
 - **Constraints**:
   - Pure C# standard project.
   - Strictly **no UI dependencies** (WinUI/Windows App SDK).
@@ -51,10 +53,11 @@ This document describes the design and modular architectural layers of **SmartBi
 - **Responsibilities**: Implements contracts using concrete storage engines, frameworks, and system APIs.
 - **Key Implementations**:
   - `Sha256FileHasher`: Cryptographic SHA-256 hashing using stream-based APIs.
-  - `EfSmartBinRepository` / `SmartBinDbContext`: Uses SQLite and EF Core to store file metadata separately from the actual physical files.
+  - `EfSmartBinRepository` / `SmartBinDbContext`: SQLite database metadata mapping.
   - `StorageManager`: Safely creates and manages physical storage folders (`objects/`, `temp/`, `metadata/`).
-  - `ZipCompressionService`: Implementation of `ICompressionService` using stream-based `System.IO.Compression.DeflateStream` supporting large files.
-  - `RestoreService`: Coordinates safe restore: ensures target file does not exist (overwrite protection), copies or decompresses representation to a temporary restoration file, verifies SHA-256 integrity, and renames/moves file to its target path.
+  - `ZipCompressionService`: Implementation of `ICompressionService` using Deflate streams.
+  - `StoragePressureMonitor`: Scans actual physical disks using `DriveInfo` and maps to configured pressure state thresholds.
+  - `RestoreService`: Coordinates safe overwrite-protected restoration.
 
 ### 4. SmartBin.App
 - **Responsibilities**: WinUI 3 Application desktop UI providing views, modern Windows 11 dashboards, and conceptual visualizations.
@@ -62,7 +65,7 @@ This document describes the design and modular architectural layers of **SmartBi
   - Consumes services registered in the Dependency Injection container.
   - Business logic flows entirely through `SmartBin.Core` and `SmartBin.Contracts`.
 
-## Safe File Lifecycle
+## Safe File Lifecycle & Optimization Pipeline
 
 ```
 [User-Selected File]
@@ -75,21 +78,23 @@ Store safely in SmartBin objects/ folder
        ↓
 Record Metadata (Uncompressed)
        ↓
-Analyze Compression / Heuristics (CompressionEngine)
+Storage Pressure scan (StoragePressureMonitor)
        ↓
-Compress to temp/ file only if worthwhile (threshold check)
+Low / Critical state triggered ──> Recommend Optimization (StoragePressurePolicy)
        ↓
-Decompress & verify SHA-256 matches original
+Ranks & scores candidates with explanation (CandidateAnalyzer)
        ↓
-Swap file representation & mark database metadata as Compressed
+Calculates optimization batch (OptimizationPlanner)
+       ↓
+Executes batch sequentially (OptimizationExecutor)
+  - Rechecks space before each candidate; stops early if resolved!
+  - Compresses atomically to temp/ file
+  - Decompresses and validates SHA-256 checksum
+  - Commits DB metadata and deletes uncompressed file
        ↓
 Restore on request (RestoreService)
        ↓
-Write decompressed data to temp/ restore file
-       ↓
 Verify restored SHA-256 matches original
-       ↓
-Move atomically to requested destination (Overwrite protected)
        ↓
 Byte-for-byte integrity confirmed
 ```
