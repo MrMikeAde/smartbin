@@ -31,6 +31,77 @@ namespace SmartBin.Core.Services
             return candidates;
         }
 
+        public CandidateItem AnalyzeWindowsItem(WindowsRecycleBinItem item)
+        {
+            if (item == null) throw new ArgumentNullException(nameof(item));
+
+            var ext = Path.GetExtension(item.OriginalPath);
+            var candidate = new CandidateItem
+            {
+                ItemId = Guid.Empty, // Windows Recycle Bin item (Id represented as string elsewhere)
+                OriginalFileName = item.FileName,
+                OriginalExtension = ext,
+                OriginalSize = item.Size,
+                CurrentStoredSize = item.Size,
+                DeletedTimestamp = item.DeletedTimestamp ?? DateTime.UtcNow,
+                CompressionStatus = (int)CompressionStatus.Uncompressed
+            };
+
+            // Estimate Compression Ratio and Savings (Read-only analysis)
+            if (CompressionHeuristics.IsTypicallyCompressed(ext))
+            {
+                candidate.EstimatedCompressionRatio = 1.0;
+                candidate.EstimatedSavingsBytes = 0;
+            }
+            else
+            {
+                var lowerExt = ext.ToLowerInvariant();
+                double estimatedRatio = 0.70;
+                if (lowerExt == ".txt" || lowerExt == ".csv" || lowerExt == ".log" || lowerExt == ".sql" || lowerExt == ".ini" || lowerExt == ".json" || lowerExt == ".xml")
+                {
+                    estimatedRatio = 0.35;
+                }
+
+                candidate.EstimatedCompressionRatio = estimatedRatio;
+                candidate.EstimatedSavingsBytes = Math.Max(0, (long)(item.Size * (1.0 - estimatedRatio)));
+            }
+
+            // Calculate Scoring Factors
+            double sizeScore = GetSizeFactor(item.Size);
+            double ageScore = GetAgeFactor(candidate.DeletedTimestamp);
+            double savingsScore = GetSavingsFactor(candidate.EstimatedCompressionRatio);
+            double statusScore = GetStatusFactor(CompressionStatus.Uncompressed);
+
+            candidate.PriorityScore = sizeScore + ageScore + savingsScore + statusScore;
+
+            // Generate explainability rationale
+            var ageDays = (DateTime.UtcNow - candidate.DeletedTimestamp).TotalDays;
+            var bulletPoints = new List<string>();
+
+            if (item.Size >= 10 * 1024 * 1024) bulletPoints.Add("• Large file");
+            else if (item.Size >= 1024 * 1024) bulletPoints.Add("• Medium file");
+            else bulletPoints.Add("• Small file");
+
+            bulletPoints.Add($"• {(int)ageDays} days old");
+
+            if (candidate.EstimatedSavingsBytes >= 1024 * 1024)
+            {
+                bulletPoints.Add($"• Estimated {((double)candidate.EstimatedSavingsBytes / (1024 * 1024)):F1} MB savings");
+            }
+            else
+            {
+                bulletPoints.Add($"• Estimated {candidate.EstimatedSavingsBytes:N0} bytes savings");
+            }
+
+            bulletPoints.Add("• Not currently compressed");
+            bulletPoints.Add("• Location: Windows Recycle Bin (Read-only Analysis)");
+
+            candidate.IsEligibleForOptimization = false; // Real Windows items are read-only in this Phase
+            candidate.PriorityExplaination = string.Join("\n", bulletPoints);
+
+            return candidate;
+        }
+
         public CandidateItem AnalyzeItem(SmartBinItem item)
         {
             if (item == null) throw new ArgumentNullException(nameof(item));
