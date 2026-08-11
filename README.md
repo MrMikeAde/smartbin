@@ -24,21 +24,22 @@ restore
 exact original 20 GB file
 ```
 
-## Working Prototype (Phase 2)
-SmartBin is now a fully functional core file-lifecycle and compression prototype:
-- **Safe Import**: Users can import any selected file into the controlled storage directory safely.
-- **SHA-256 Hashing**: Calculates deterministic hashes using buffered streaming I/O suitable for large files.
-- **Compression Heuristics**: Inspects file extensions (`.zip`, `.mp4`, `.png`, etc.) to skip compression on already-optimized formats.
-- **Threshold Decision Logic**: Only compresses if it meets configurable thresholds (default: at least 5% savings and 1024 bytes saved).
-- **Atomic Compression**: Writes to a temporary file first, verifies decompression checksum matches original, then deletes uncompressed representation and updates SQLite metadata.
-- **Safe Overwrite-Protected Restore**: Decompresses or copies to a temporary restoration file, verifies SHA-256 checksum byte-for-byte, and moves atomically to destination. If target destination already exists, aborts with a clear conflict exception.
+## Working Prototype (Phase 3)
+SmartBin is now equipped with **Adaptive Storage Intelligence**:
+- **Storage Pressure Monitoring**: Leverages `DriveInfo` system APIs to calculate available space, capacity, and percentage. Maps space conditions to configurable states: `Normal`, `Low`, and `Critical`.
+- **Recommendation Policy**: Deterministically evaluates pressure states to output clear optimization action plans.
+- **Explainable Scoring & Prioritization**: Ranks files using a deterministic Priority Score formula incorporating size, age, compressibility, and optimization status. Rationale is fully structured and explained (e.g. "Large file, deleted 42 days ago, high expected savings").
+- **Batch Optimization Planner**: Selects the minimal optimal set of candidates to compress to satisfy a target space requirement, sorting by priority score first.
+- **Dynamic Optimization Executor**: Executes plans sequentially with active revalidation, cancellation checks, and early stopping if space constraints resolve midway.
+- **Safe Import & Restore**: Computes stream-based SHA-256 hashes, implements multi-phase atomic temporary file swaps, and provides overwrite-protected restoration.
+- **Storage Simulator**: Includes an interactive programmatic simulator to toggle states (`Normal`, `Low`, `Critical`) and metrics to safely dry-run adaptive compression.
 
 ## Project Structure
 - `src/SmartBin.App`: WinUI 3 dashboard desktop application shell (supporting conditional headless live demo mode on Linux).
-- `src/SmartBin.Core`: Core domain models, state enums, heuristics, and safe import/compression engine coordinator services.
+- `src/SmartBin.Core`: Core domain models, state enums, heuristics, priority scorers, batch planners, executors, and simulators.
 - `src/SmartBin.Infrastructure`: SQLite database, EF Core persistence, stream-based hashing, storage managers, and ZIP compression service.
 - `src/SmartBin.Contracts`: Common interfaces, custom exception definitions, and service contracts.
-- `tests/`: Extensive automated unit and integration tests validating safe import, compression heuristics, thresholds, restoration integrity, and atomicity rollbacks.
+- `tests/`: 51 automated unit and integration tests validating safe import, heuristics, scoring models, batch planners, executors, restoration integrity, and atomicity rollbacks.
 
 ## Safety Philosophy
 Data integrity is our highest priority.
@@ -57,7 +58,7 @@ Data integrity is our highest priority.
    ```bash
    dotnet test smartbin.sln
    ```
-4. Run the live demo console simulation using:
+4. Run the live demo console simulation (featuring simulated pressure, candidate explanation, batch planning, and actual space recovery updates) using:
    ```bash
    dotnet run --project src/SmartBin.App
    ```
