@@ -7,86 +7,145 @@
     mc:Ignorable="d"
     Title="SmartBin Dashboard">
 
-    <Grid Padding="24">
+    <Grid Padding="24" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,24">
-            <TextBlock Text="SmartBin Dashboard" Style="{ThemeResource HeaderTextBlockStyle}"/>
-            <TextBlock Text="Experimental Adaptive Recycle Bin PoC" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
-        </StackPanel>
-
-        <!-- Main Grid -->
-        <Grid Grid.Row="1">
+        <!-- Header and Toolbar -->
+        <Grid Grid.Row="0" Margin="0,0,0,24">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Dashboard Left Side -->
-            <StackPanel Grid.Column="0" Spacing="16">
-                <!-- Storage Section -->
-                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="SmartBin Dashboard" Style="{ThemeResource HeaderTextBlockStyle}" FontWeight="SemiBold"/>
+                <TextBlock Text="Experimental Adaptive Recycle Bin PoC" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <Button x:Name="ImportBtn" Content="Import File..." Click="OnImportFileClicked" Style="{StaticResource AccentButtonStyle}"/>
+                <Button x:Name="CompressBtn" Content="Compress Selected" Click="OnCompressSelectedClicked"/>
+                <Button x:Name="RestoreBtn" Content="Restore Selected" Click="OnRestoreSelectedClicked"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Main Dashboard View -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="350"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Panel: Summary & Metrics -->
+            <StackPanel Grid.Column="0" Spacing="16" Margin="0,0,16,0">
+                <!-- Storage Utilization Card -->
+                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Storage Visualization" Style="{ThemeResource SubheaderTextBlockStyle}"/>
-                        <ProgressBar Value="45" Minimum="0" Maximum="100" Height="24"/>
-                        <TextBlock Text="45% Capacity Used (Storage Pressure: Normal)" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                        <TextBlock Text="Storage Visualization" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium"/>
+                        <ProgressBar x:Name="StorageProgress" Value="0" Minimum="0" Maximum="100" Height="12" CornerRadius="4"/>
+                        <TextBlock x:Name="StorageStatusText" Text="Loading storage status..." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="Gray"/>
                     </StackPanel>
                 </Border>
 
-                <!-- Recoverable Items Section -->
-                <Grid ColumnSpacing="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                <!-- Detailed Stats Card -->
+                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="System Metrics" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium"/>
+                        <MenuFlyoutSeparator Margin="0,4"/>
 
-                    <Border Grid.Column="0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="Recoverable Items" Style="{ThemeResource CaptionTextBlockStyle}"/>
-                            <TextBlock Text="15" Style="{ThemeResource TitleLargeTextBlockStyle}"/>
-                        </StackPanel>
-                    </Border>
+                        <Grid>
+                            <TextBlock Text="Original size:" Style="{ThemeResource BodyTextBlockStyle}"/>
+                            <TextBlock x:Name="OriginalSizeText" Text="0 bytes" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="Bold"/>
+                        </Grid>
+                        <Grid>
+                            <TextBlock Text="Stored size:" Style="{ThemeResource BodyTextBlockStyle}"/>
+                            <TextBlock x:Name="StoredSizeText" Text="0 bytes" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="Bold"/>
+                        </Grid>
+                        <Grid>
+                            <TextBlock Text="Space saved:" Style="{ThemeResource BodyTextBlockStyle}"/>
+                            <TextBlock x:Name="SpaceSavedText" Text="0 bytes" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Green" FontWeight="Bold"/>
+                        </Grid>
 
-                    <Border Grid.Column="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="Space Reclaimed" Style="{ThemeResource CaptionTextBlockStyle}"/>
-                            <TextBlock Text="78 GB" Style="{ThemeResource TitleLargeTextBlockStyle}" Foreground="Green"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                        <MenuFlyoutSeparator Margin="0,4"/>
 
-                <Grid ColumnSpacing="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                        <Grid>
+                            <TextBlock Text="Files protected:" Style="{ThemeResource BodyTextBlockStyle}"/>
+                            <TextBlock x:Name="FilesProtectedText" Text="0" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}"/>
+                        </Grid>
+                        <Grid>
+                            <TextBlock Text="Compressed:" Style="{ThemeResource BodyTextBlockStyle}"/>
+                            <TextBlock x:Name="CompressedText" Text="0" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}"/>
+                        </Grid>
+                        <Grid>
+                            <TextBlock Text="Already optimized:" Style="{ThemeResource BodyTextBlockStyle}"/>
+                            <TextBlock x:Name="OptimizedText" Text="0" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
 
-                    <Border Grid.Column="0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="Original Storage Size" Style="{ThemeResource CaptionTextBlockStyle}"/>
-                            <TextBlock Text="120 GB" Style="{ThemeResource TitleTextBlockStyle}"/>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Grid.Column="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="Stored Size" Style="{ThemeResource CaptionTextBlockStyle}"/>
-                            <TextBlock Text="42 GB" Style="{ThemeResource TitleTextBlockStyle}"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                <!-- Logs / Operations Status Output -->
+                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Operation Terminal" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="Bold" Foreground="Gray"/>
+                        <ScrollViewer Height="100" VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="TerminalText" Text="Terminal Ready..." TextWrapping="Wrap" FontFamily="Consolas" FontSize="11" Foreground="DarkGreen"/>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
             </StackPanel>
 
-            <!-- Dashboard Right Side (Recent Items placeholder) -->
-            <Border Grid.Column="1" Margin="16,0,0,0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Recent Items" Style="{ThemeResource SubheaderTextBlockStyle}"/>
-                    <TextBlock Text="[ Placeholder - Recent operations will appear here ]" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
-                </StackPanel>
+            <!-- Right Panel: SmartBin Items Grid -->
+            <Border Grid.Column="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Recoverable Items" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium" Margin="0,0,0,12"/>
+
+                    <ListView x:Name="ItemsListView" Grid.Row="1" SelectionMode="Single" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                        <ListView.HeaderTemplate>
+                            <DataTemplate>
+                                <Grid Padding="12,0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="200"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Filename" FontWeight="Bold"/>
+                                    <TextBlock Grid.Column="1" Text="Orig Size" FontWeight="Bold"/>
+                                    <TextBlock Grid.Column="2" Text="Stored Size" FontWeight="Bold"/>
+                                    <TextBlock Grid.Column="3" Text="Status" FontWeight="Bold"/>
+                                    <TextBlock Grid.Column="4" Text="SHA-256 Hash" FontWeight="Bold"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.HeaderTemplate>
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Padding="12,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="200"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding OriginalFileName}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding OriginalSize}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding CurrentStoredSize}"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding CompressionStatus}"/>
+                                    <TextBlock Grid.Column="4" Text="{Binding Sha256Hash}" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

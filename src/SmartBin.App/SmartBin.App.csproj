@@ -29,9 +29,18 @@
     <Compile Remove="MainWindow.xaml.cs" />
     <None Include="App.xaml.cs" />
     <None Include="MainWindow.xaml.cs" />
+    <Page Remove="**\*.xaml" />
+    <ApplicationDefinition Remove="**\*.xaml" />
+    <None Include="**\*.xaml" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SmartBin.Core\SmartBin.Core.csproj" />
+    <ProjectReference Include="..\SmartBin.Infrastructure\SmartBin.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
   </ItemGroup>
 </Project>

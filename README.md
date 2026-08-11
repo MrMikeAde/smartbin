@@ -24,12 +24,21 @@ restore
 exact original 20 GB file
 ```
 
+## Working Prototype (Phase 2)
+SmartBin is now a fully functional core file-lifecycle and compression prototype:
+- **Safe Import**: Users can import any selected file into the controlled storage directory safely.
+- **SHA-256 Hashing**: Calculates deterministic hashes using buffered streaming I/O suitable for large files.
+- **Compression Heuristics**: Inspects file extensions (`.zip`, `.mp4`, `.png`, etc.) to skip compression on already-optimized formats.
+- **Threshold Decision Logic**: Only compresses if it meets configurable thresholds (default: at least 5% savings and 1024 bytes saved).
+- **Atomic Compression**: Writes to a temporary file first, verifies decompression checksum matches original, then deletes uncompressed representation and updates SQLite metadata.
+- **Safe Overwrite-Protected Restore**: Decompresses or copies to a temporary restoration file, verifies SHA-256 checksum byte-for-byte, and moves atomically to destination. If target destination already exists, aborts with a clear conflict exception.
+
 ## Project Structure
-- `src/SmartBin.App`: WinUI 3 dashboard desktop application shell.
-- `src/SmartBin.Core`: Core domain models, state enums, and compression decision logic.
-- `src/SmartBin.Infrastructure`: SQLite database, EF Core persistence, file hasher implementation.
-- `src/SmartBin.Contracts`: Common interfaces and service definitions.
-- `tests/`: Project tests validating hashing, repository CRUD, and compression logic.
+- `src/SmartBin.App`: WinUI 3 dashboard desktop application shell (supporting conditional headless live demo mode on Linux).
+- `src/SmartBin.Core`: Core domain models, state enums, heuristics, and safe import/compression engine coordinator services.
+- `src/SmartBin.Infrastructure`: SQLite database, EF Core persistence, stream-based hashing, storage managers, and ZIP compression service.
+- `src/SmartBin.Contracts`: Common interfaces, custom exception definitions, and service contracts.
+- `tests/`: Extensive automated unit and integration tests validating safe import, compression heuristics, thresholds, restoration integrity, and atomicity rollbacks.
 
 ## Safety Philosophy
 Data integrity is our highest priority.
@@ -42,9 +51,13 @@ Data integrity is our highest priority.
 1. Clone this repository.
 2. Build the solution using:
    ```bash
-   dotnet build
+   dotnet build smartbin.sln
    ```
-3. Run unit tests using:
+3. Run unit and integration tests using:
    ```bash
-   dotnet test
+   dotnet test smartbin.sln
+   ```
+4. Run the live demo console simulation using:
+   ```bash
+   dotnet run --project src/SmartBin.App
    ```
