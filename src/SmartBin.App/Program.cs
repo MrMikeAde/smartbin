@@ -16,7 +16,7 @@ using SmartBin.Infrastructure.Storage;
 namespace SmartBin.App
 {
     /// <summary>
-    /// Program class to bootstrap the application and run interactive headless Phase 4 simulation on Linux.
+    /// Program class to bootstrap the application and run interactive headless Phase 5 simulation on Linux.
     /// </summary>
     public static class Program
     {
@@ -47,14 +47,14 @@ namespace SmartBin.App
 
         private static async Task RunMockDashboardAsync()
         {
-            Console.WriteLine("\n[Running Headless Phase 4 Windows Recycle Bin Integration Demo (Linux Sandbox)]\n");
+            Console.WriteLine("\n[Running Headless Phase 5 Controlled Experiment Proof (Linux Sandbox)]\n");
 
-            var demoRootDir = Path.Combine(Path.GetTempPath(), "SmartBinPhase4Demo_" + Guid.NewGuid().ToString("N"));
+            var demoRootDir = Path.Combine(Path.GetTempPath(), "SmartBinPhase5Demo_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(demoRootDir);
 
             // DB Setup
             var options = new DbContextOptionsBuilder<SmartBinDbContext>()
-                .UseSqlite($"Data Source={Path.Combine(demoRootDir, "smartbin_p4_demo.db")}")
+                .UseSqlite($"Data Source={Path.Combine(demoRootDir, "smartbin_p5_demo.db")}")
                 .Options;
 
             using var dbContext = new SmartBinDbContext(options);
@@ -65,87 +65,88 @@ namespace SmartBin.App
             var pathProvider = new DefaultStoragePathProvider(demoRootDir);
             var storageManager = new StorageManager(pathProvider);
             var compressionService = new ZipCompressionService();
+            var mutationService = new WindowsRecycleBinMutationService(pathProvider);
 
-            var importService = new ImportService(repository, fileHasher, storageManager);
-            var compressionEngine = new CompressionEngine(repository, compressionService, fileHasher, storageManager);
-            var pressureMonitor = new StoragePressureMonitor(pathProvider);
-            var simulator = new StoragePressureSimulator(pressureMonitor);
+            var experimentEngine = new ControlledExperimentEngine(
+                repository,
+                mutationService,
+                compressionService,
+                fileHasher,
+                storageManager);
 
-            var candidateAnalyzer = new CandidateAnalyzer(repository);
-            var planner = new OptimizationPlanner();
-            var executor = new OptimizationExecutor(repository, pressureMonitor, compressionEngine);
-
-            // Phase 4 Provider Setup (Simulated for Headless Environment)
+            // Phase 5 Provider Setup (Simulated for Headless Environment)
             IRecycleBinProvider winProvider = new SimulatedRecycleBinProvider();
 
-            // 1. Populate some SmartBin Controlled Items
-            Console.WriteLine("--> Populating SmartBin Storage Files...");
-            var textFile = Path.Combine(demoRootDir, "database_dump.sql");
-            await File.WriteAllTextAsync(textFile, "DUMP: " + new string('S', 100000)); // 100KB compressible sql
-            var textItem = await importService.ImportFileAsync(textFile);
-            await compressionEngine.CompressItemAsync(textItem.Id);
-
-            // 2. Fetch Windows Recycle Bin statistics and items
-            Console.WriteLine("\n--> Querying Windows Recycle Bin (READ-ONLY)...");
-            var winStats = await winProvider.GetStatisticsAsync();
+            Console.WriteLine("--> Discovering Windows Recycle Bin Items...");
             var winItems = (await winProvider.EnumerateItemsAsync()).ToList();
 
-            // Display Dashboard UI Mock representation with Windows Recycle Bin section
-            var items = (await repository.GetAllAsync()).ToList();
-            long totalOriginal = items.Sum(i => i.OriginalSize);
-            long totalStored = items.Sum(i => i.CurrentStoredSize);
-            long actualSpaceReclaimed = totalOriginal - totalStored;
+            // Select exactly ONE item for our controlled experiment
+            var targetItem = winItems.First(i => i.FileName == "database.sql");
 
-            Console.WriteLine("\n=========================================");
-            Console.WriteLine("                SMARTBIN                 ");
-            Console.WriteLine("=========================================");
-            Console.WriteLine("Storage:");
-            Console.WriteLine("42.3 GB free");
-            Console.WriteLine("-----------------------------------------");
-            Console.WriteLine("SmartBin Storage (Controlled):");
-            Console.WriteLine($"Recoverable items:      {items.Count}");
-            Console.WriteLine($"Original size:          {totalOriginal:N0} bytes");
-            Console.WriteLine($"Stored size:            {totalStored:N0} bytes");
-            Console.WriteLine($"Actual space reclaimed: {actualSpaceReclaimed:N0} bytes");
-            Console.WriteLine("-----------------------------------------");
-            Console.WriteLine("WINDOWS RECYCLE BIN");
-            Console.WriteLine("-----------------------------------------");
-            Console.WriteLine($"Status:                 CONNECTED");
-            Console.WriteLine($"Integration type:       READ-ONLY INTEGRATION");
-            Console.WriteLine($"Total Items:            {winStats.TotalItems}");
-            Console.WriteLine($"Aggregate Size:         {winStats.TotalSize / (1024 * 1024):N0} MB");
-            Console.WriteLine("=========================================\n");
+            Console.WriteLine($"\n========================================================");
+            Console.WriteLine("                CONTROLLED EXPERIMENT                   ");
+            Console.WriteLine("========================================================");
+            Console.WriteLine($"Selected Recycle Bin Item: {targetItem.FileName}");
+            Console.WriteLine($"Original Size:             {targetItem.Size / (1024 * 1024):N0} MB");
+            Console.WriteLine($"Original Location:         {targetItem.OriginalPath}");
+            Console.WriteLine($"Volume:                    {targetItem.Volume}");
+            Console.WriteLine("--------------------------------------------------------");
+            Console.WriteLine("SmartBin will perform a controlled experiment on this ONE item.");
+            Console.WriteLine("No automatic or batch optimization will occur.");
+            Console.WriteLine("========================================================\n");
 
-            // 3. Storage Intelligence Integration: Read-Only Analysis
-            Console.WriteLine("--> Running Read-Only Storage Intelligence Analysis on Windows Recycle Bin Items...");
-            Console.WriteLine("-----------------------------------------");
-            Console.WriteLine("Windows Recycle Bin Analysis (ANALYSIS ONLY)");
-            Console.WriteLine("-----------------------------------------");
+            Console.WriteLine("--> Running Pipeline Safety Checks (State Machine transitions):");
 
-            var analyzedCandidates = winItems.Select(item => candidateAnalyzer.AnalyzeWindowsItem(item)).ToList();
-            var highPriorityCount = analyzedCandidates.Count(c => c.PriorityScore >= 250);
-            long totalPotentialReclaimable = (long)analyzedCandidates.Sum(c => c.EstimatedSavingsBytes);
-
-            Console.WriteLine($"Potential candidates: {analyzedCandidates.Count}");
-            Console.WriteLine($"Estimated reclaimable: {totalPotentialReclaimable / (1024 * 1024):N0} MB");
-            Console.WriteLine("-----------------------------------------");
-
-            // Output top 3 prioritized candidates for optimization planning simulation
-            var topCandidates = analyzedCandidates.OrderByDescending(c => c.PriorityScore).Take(3).ToList();
-            foreach (var cand in topCandidates)
+            try
             {
-                var realItem = winItems.First(i => i.FileName == cand.OriginalFileName);
-                Console.WriteLine($"\nFile: {cand.OriginalFileName}");
-                Console.WriteLine($"Size: {realItem.Size / (1024 * 1024):N0} MB");
-                Console.WriteLine($"Deleted: {realItem.DeletedTimestamp}");
-                Console.WriteLine($"Volume: {realItem.Volume}");
-                Console.WriteLine($"Priority: {(cand.PriorityScore >= 250 ? "HIGH" : "MEDIUM")} PRIORITY (Score: {cand.PriorityScore:F1})");
-                Console.WriteLine("Why?");
-                Console.WriteLine(cand.PriorityExplaination);
+                var experiment = await experimentEngine.PrepareAndVerifyAsync(
+                    targetItem,
+                    state => Console.WriteLine($"  [State Changed] -> {state}"));
+
+                Console.WriteLine("\n--------------------------------------------------------");
+                Console.WriteLine("SAFETY CHECKS PASSED:");
+                Console.WriteLine("✓ Item identified");
+                Console.WriteLine("✓ Content acquired securely");
+                Console.WriteLine($"✓ SHA-256 calculated: {experiment.OriginalSha256}");
+                Console.WriteLine($"✓ Compression completed: {experiment.CompressedSize / (1024 * 1024):N0} MB stored");
+                Console.WriteLine($"✓ Compressed representation verified");
+                Console.WriteLine("✓ Restoration test passed byte-for-byte");
+                Console.WriteLine("--------------------------------------------------------");
+                Console.WriteLine("Status: READY FOR COMMIT");
+                Console.WriteLine("--------------------------------------------------------");
+                Console.WriteLine($"Original Size:     {experiment.OriginalSize:N0} bytes");
+                Console.WriteLine($"Stored Size:       {experiment.CompressedSize:N0} bytes");
+                Console.WriteLine($"Verified Savings:  {experiment.ActualSavingsBytes:N0} bytes (Ratio: {experiment.CompressionRatio:F2})");
+                Console.WriteLine("--------------------------------------------------------");
+
+                // Explicit Commit Boundary
+                Console.WriteLine("\n--> Requiring Explicit User Confirmation...");
+                Console.WriteLine("Confirming commit: [Yes]");
+
+                // In headless demo, we complete commit without real Windows mutation (no real Recycle Bin item is removed)
+                await experimentEngine.CommitExperimentAsync(
+                    experiment,
+                    executeWindowsMutation: false,
+                    state => Console.WriteLine($"  [State Changed] -> {state}"));
+
+                Console.WriteLine("\n✓ Controlled Experiment Committed successfully.");
+                Console.WriteLine("SmartBin has safely saved the verified compressed copy.");
+                Console.WriteLine("Original Windows Recycle Bin entry remains untouched.");
+
+                // Show database entry
+                var dbItems = (await repository.GetAllAsync()).ToList();
+                Console.WriteLine($"\nStored SmartBin Items in Metadata DB: {dbItems.Count}");
+                foreach (var dbItem in dbItems)
+                {
+                    Console.WriteLine($"- {dbItem.OriginalFileName} (Size: {dbItem.OriginalSize:N0} -> Stored: {dbItem.CurrentStoredSize:N0}, Status: {dbItem.CompressionStatus})");
+                }
+                Console.WriteLine("========================================================\n");
             }
-            Console.WriteLine("-----------------------------------------");
-            Console.WriteLine("NOTE: Modification, compression, and replacement of real Windows Recycle Bin items are intentionally not implemented.");
-            Console.WriteLine("=========================================\n");
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n❌ Experiment Pipeline Failed: {ex.Message}");
+                Console.WriteLine("Rollback successful. Original Recycle Bin item left completely untouched.");
+            }
 
             // Cleanup demo directory
             try

@@ -24,22 +24,23 @@ restore
 exact original 20 GB file
 ```
 
-## Working Prototype (Phase 4)
-SmartBin is now integrated safely with the **Windows Recycle Bin**:
-- **Windows Recycle Bin Integration**: Safely and securely connects to Windows `ssfBITBUCKET (10)` COM namespaces using standard Windows Shell APIs to enumerate actual Recycle Bin items, original paths, file sizes, deletion dates, and volume origins. Works under normal user privileges (no admin required).
-- **Absolute Read-Only Safety**: Enforces a strict read-only design for native items. Modification, compression, deletion, and replacement of real Windows Recycle Bin items are intentionally not implemented in this phase.
-- **Explainable Analysis**: Storage intelligence engine (`CandidateAnalyzer`) can analyze simulated and real Windows Recycle Bin items without modifying them, rating them with deterministic priority scores and formatting human-readable rationales (e.g. "Large file, deleted 42 days ago, high expected savings").
-- **Simulated Recycle Bin Provider**: Employs an in-memory simulated provider with realistic datasets supporting multi-volume drives for automated validation and headless CI tests.
-- **Storage Pressure Monitoring**: Scans available physical and simulated space, grouping constraints into `Normal`, `Low`, and `Critical` states.
-- **Batch Planner & Executor**: Sorts eligible candidates and selects the optimal set of files to compress sequentially with active revalidation, cancellation, and early stopping.
-- **Safe Import & Restore**: Employs stream-based copy, Deflate compression, SHA-256 integrity verification, and overwrite-protected restoration.
+## Working Prototype (Phase 5)
+SmartBin includes a fully functional **Controlled Real-World Optimization Proof**:
+- **Controlled Experiment Mode**: Safely runs a highly structured, 11-step verification experiment on exactly ONE selected Windows Recycle Bin item. No background or batch optimization occurs.
+- **Strict State Machine**: Tracks transitions dynamically (`Discovered`, `Acquired`, `AcquisitionVerified`, `Compressed`, `CompressionVerified`, `RestorationVerified`, `ReadyForCommit`, `Committed`, `Failed`, etc.) to guarantee absolute safety and recoverability.
+- **Secure Acquisition & Hashing**: Streams file contents securely into `temp/` without modifying the original item. Calculates deterministic original SHA-256 and checks file size matches exactly.
+- **Verification Dry-Runs**: Automatically compresses, decompresses, and performs a restoration dry-run in temporary storage, verifying SHA-256 byte-for-byte, before ever considering a commit.
+- **Explicit Commit Boundary**: Transitions to `READY FOR COMMIT`. The user must give explicit manual confirmation before any final commit.
+- **Safe COM Verb Mutation**: Connects to Windows `ssfBITBUCKET (10)` Shell COM APIs to safely trigger single-item undelete (`InvokeVerb("restore")`) and permanent deletion (`InvokeVerb("delete")`) under standard user permissions, providing robust file rollbacks on any failure.
+- **Test File Generator**: Includes a built-in generator to easily create compressible/incompressible test files (10MB, 100MB, 500MB, 1GB) for safe verification.
+- **Storage Simulator**: Includes an interactive programmatic simulator to dry-run different pressure constraints safely.
 
 ## Project Structure
-- `src/SmartBin.App`: WinUI 3 dashboard desktop application shell (with separate controlled storage and read-only Windows Recycle Bin tabs, supporting conditional headless live demo mode on Linux).
-- `src/SmartBin.Core`: Core domain models, state enums, heuristics, priority scorers, batch planners, executors, and simulated Recycle Bin providers.
-- `src/SmartBin.Infrastructure`: SQLite database, EF Core persistence, stream-based hashing, storage managers, ZIP compression, and Windows Shell COM Recycle Bin integration.
+- `src/SmartBin.App`: WinUI 3 dashboard desktop application shell (with separate controlled storage, read-only Windows Recycle Bin, and Controlled Experiment tabs, supporting conditional headless live demo mode on Linux).
+- `src/SmartBin.Core`: Core domain models, state enums, heuristics, priority scorers, batch planners, executors, simulated Recycle Bin providers, test file generators, and Phase 5 Controlled Experiment engines.
+- `src/SmartBin.Infrastructure`: SQLite database, EF Core persistence, stream-based hashing, storage managers, ZIP compression, and native Windows Shell COM Recycle Bin mutation services.
 - `src/SmartBin.Contracts`: Common interfaces, custom exception definitions, and service contracts.
-- `tests/`: Extensive automated unit and integration tests validating safe import, heuristics, scoring models, batch planners, simulated Windows Recycle Bin, and atomicity rollbacks.
+- `tests/`: 59 automated unit and integration tests validating safe import, heuristics, scoring models, batch planners, simulated Windows Recycle Bin, and Phase 5 state machine rollbacks.
 
 ## Safety Philosophy
 Data integrity is our highest priority.

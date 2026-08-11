@@ -41,6 +41,12 @@ namespace SmartBin.App
         private IRecycleBinProvider? _realWinProvider;
         private IRecycleBinProvider? _simWinProvider;
 
+        // Phase 5 services
+        private WindowsRecycleBinMutationService? _mutationService;
+        private ControlledExperimentEngine? _experimentEngine;
+        private WindowsRecycleBinItem? _selectedWinItem;
+        private ControlledExperimentItem? _currentExperiment;
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -82,6 +88,15 @@ namespace SmartBin.App
                 // Phase 4 providers
                 _realWinProvider = new WindowsRecycleBinProvider();
                 _simWinProvider = new SimulatedRecycleBinProvider();
+
+                // Phase 5 mutation and engine
+                _mutationService = new WindowsRecycleBinMutationService(_pathProvider);
+                _experimentEngine = new ControlledExperimentEngine(
+                    _repository,
+                    _mutationService,
+                    _compressionService,
+                    _fileHasher,
+                    _storageManager);
 
                 RefreshUI();
                 RefreshWinRecycleBinUI();
@@ -359,6 +374,15 @@ namespace SmartBin.App
 
             try
             {
+                _selectedWinItem = selectedItem;
+
+                // Update Phase 5 tab details dynamically
+                ExpFileNameText.Text = selectedItem.FileName;
+                ExpOrigPathText.Text = $"Original Path: {selectedItem.OriginalPath}";
+                ExpSizeText.Text = $"Original Size: {selectedItem.Size:N0} bytes";
+
+                ResetChecklist();
+
                 // Retrieve read-only intelligence scoring and explainability for Windows item
                 var candidate = _candidateAnalyzer.AnalyzeWindowsItem(selectedItem);
                 LogToTerminal($"--- READ-ONLY ANALYSIS: {candidate.OriginalFileName} ---");
@@ -381,6 +405,154 @@ namespace SmartBin.App
             LogToTerminal("Querying Windows Recycle Bin...");
             RefreshWinRecycleBinUI();
             LogToTerminal("Windows Recycle Bin Item list refreshed successfully.");
+        }
+
+        private void ResetChecklist()
+        {
+            Check1.Text = "PENDING"; Check1.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128));
+            Check2.Text = "PENDING"; Check2.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128));
+            Check3.Text = "PENDING"; Check3.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128));
+            Check4.Text = "PENDING"; Check4.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128));
+            Check5.Text = "PENDING"; Check5.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128));
+            Check6.Text = "PENDING"; Check6.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128));
+
+            CommitStatusText.Text = "Status: WAITING FOR PIPELINE CHECKS";
+            CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 0, 139));
+
+            CommitExpBtn.IsEnabled = false;
+            KeepCopyBtn.IsEnabled = false;
+        }
+
+        private async void OnBeginControlledTestClicked(object sender, RoutedEventArgs e)
+        {
+            if (_experimentEngine == null || _selectedWinItem == null)
+            {
+                LogToTerminal("Please select exactly ONE Windows Recycle Bin item to run the experiment.");
+                return;
+            }
+
+            ResetChecklist();
+            LogToTerminal($"--> Starting Controlled Experiment on {_selectedWinItem.FileName}...");
+
+            try
+            {
+                _currentExperiment = await _experimentEngine.PrepareAndVerifyAsync(_selectedWinItem, state =>
+                {
+                    // Update checklist indicators dynamically in response to state transitions
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        switch (state)
+                        {
+                            case ExperimentState.Acquired:
+                                Check1.Text = "✓ PASSED"; Check1.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                                break;
+                            case ExperimentState.AcquisitionVerified:
+                                Check2.Text = "✓ PASSED"; Check2.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                                Check3.Text = "✓ PASSED"; Check3.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                                break;
+                            case ExperimentState.Compressed:
+                                Check4.Text = "✓ PASSED"; Check4.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                                break;
+                            case ExperimentState.CompressionVerified:
+                                Check5.Text = "✓ PASSED"; Check5.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                                break;
+                            case ExperimentState.RestorationVerified:
+                                Check6.Text = "✓ PASSED"; Check6.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                                break;
+                        }
+                    });
+                });
+
+                CommitStatusText.Text = "Status: READY FOR COMMIT";
+                CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+
+                CommitExpBtn.IsEnabled = true;
+                KeepCopyBtn.IsEnabled = true;
+
+                LogToTerminal($"✓ Pipeline completed successfully. Item is verified and ready for commit.");
+                LogToTerminal($"Original: {_currentExperiment.OriginalSize:N0} bytes -> Compressed: {_currentExperiment.CompressedSize:N0} bytes.");
+            }
+            catch (Exception ex)
+            {
+                LogToTerminal($"❌ Experiment Pipeline Failed: {ex.Message}");
+                LogToTerminal("Rollback executed. Original Recycle Bin item remains completely untouched.");
+                CommitStatusText.Text = "Status: PIPELINE FAILED / ROLLBACK COMPLETED";
+                CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 139, 0, 0));
+            }
+        }
+
+        private async void OnCommitExperimentClicked(object sender, RoutedEventArgs e)
+        {
+            if (_experimentEngine == null || _currentExperiment == null) return;
+
+            try
+            {
+                bool mutationSelected = MutationCheck.IsOn;
+                LogToTerminal("Committing experiment...");
+
+                await _experimentEngine.CommitExperimentAsync(_currentExperiment, mutationSelected, state =>
+                {
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        if (state == ExperimentState.Committed)
+                        {
+                            CommitStatusText.Text = "Status: COMMITTED SUCCESSFULLY";
+                            CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                            CommitExpBtn.IsEnabled = false;
+                            KeepCopyBtn.IsEnabled = false;
+                        }
+                    });
+                });
+
+                LogToTerminal("✓ Controlled Experiment Committed successfully.");
+                if (mutationSelected)
+                {
+                    LogToTerminal("Original Windows Recycle Bin entry permanently removed.");
+                }
+                else
+                {
+                    LogToTerminal("Original Recycle Bin item remains completely untouched.");
+                }
+
+                RefreshUI();
+                RefreshWinRecycleBinUI();
+            }
+            catch (Exception ex)
+            {
+                LogToTerminal($"Commit Failed: {ex.Message}");
+            }
+        }
+
+        private async void OnKeepCopyClicked(object sender, RoutedEventArgs e)
+        {
+            if (_experimentEngine == null || _currentExperiment == null) return;
+
+            try
+            {
+                LogToTerminal("Committing experiment and keeping original untouched...");
+
+                await _experimentEngine.CommitExperimentAsync(_currentExperiment, executeWindowsMutation: false, state =>
+                {
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        if (state == ExperimentState.Committed)
+                        {
+                            CommitStatusText.Text = "Status: COMMITTED SUCCESSFULLY (NO MUTATION)";
+                            CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                            CommitExpBtn.IsEnabled = false;
+                            KeepCopyBtn.IsEnabled = false;
+                        }
+                    });
+                });
+
+                LogToTerminal("✓ Verified copy preserved inside SmartBin Storage. Original Windows Recycle Bin item remains untouched.");
+                RefreshUI();
+                RefreshWinRecycleBinUI();
+            }
+            catch (Exception ex)
+            {
+                LogToTerminal($"Commit Failed: {ex.Message}");
+            }
         }
     }
 }

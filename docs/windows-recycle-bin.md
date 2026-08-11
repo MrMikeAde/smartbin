@@ -4,7 +4,7 @@ This document details the research, api selection, capabilities, limitations, an
 
 ## 1. APIs Investigated
 
-During Phase 4, several mechanisms for interacting with the actual Windows Recycle Bin were analyzed:
+During Phase 4 and Phase 5, several mechanisms for interacting with the actual Windows Recycle Bin were analyzed:
 
 1. **Direct `$Recycle.Bin` Directory & Metadata Parsing**:
    - *Mechanism*: Manually scanning directories under `C:\$Recycle.Bin` and parsing `$I` (index) and `$R` (data) files.
@@ -16,14 +16,36 @@ During Phase 4, several mechanisms for interacting with the actual Windows Recyc
    - *Mechanism*: Accessing the Windows Shell object model using Special Folder index `10` (`ssfBITBUCKET` / `CSIDL_BITBUCKET`).
    - *Why Selected*: **Officially documented, stable, and secure.** It provides fully drive-agnostic, shell-integrated enumeration of the virtual Recycle Bin. By querying column properties via `Folder.GetDetailsOf`, we can cleanly read the item's filename, original path, deletion timestamp, and file size under standard user permissions, without requiring administrator privileges or low-level parsing hacks.
 
-## 2. API Selection & Rationale
+---
+
+## 2. Windows Mutation Investigation (Phase 5 Findings)
+
+In Phase 5, we investigated whether official, documented Windows APIs support programmatic restoration or permanent deletion of single virtual Recycle Bin items.
+
+### Key Findings:
+- **COM Verb Invocation (Supported & Secure)**:
+  A virtual Recycle Bin item (`FolderItem`) in the Windows Shell COM object model supports **Verbs**!
+  By accessing `item.Verbs()`, we can programmatically trigger native Shell actions without bypassing security boundaries:
+  - **Undelete / Restore**: Activating the `"restore"` or `"undelete"` verb programmatically instructs Windows to restore the file back to its exact original path, safely resolving multi-volume paths internally.
+  - **Removal / Deletion**: Activating the `"delete"` verb programmatically removes the item from the Recycle Bin permanently, freeing up space at the system level.
+- **Physical `$R` File Streaming**:
+  The Shell COM item's `.Path` property resolves to the actual underlying `$R` data file path inside the hidden `$Recycle.Bin` directory. This allows SmartBin to stream and copy the contents of any Recycle Bin item securely using standard `FileStream` APIs without loading the file entirely into RAM.
+- **Manual Fallback**:
+  If the COM verbs fail (e.g., due to localized language differences), the matching `$R` and `$I` files can be safely deleted manually from the local disk as a robust fallback.
+
+### Mutation Service Architecture
+To preserve separation of concerns, all mutating Recycle Bin operations are encapsulated within `IRecycleBinMutationService` and implemented in `WindowsRecycleBinMutationService` (in Infrastructure). This is kept separate from `IRecycleBinProvider` (responsible for read-only discovery).
+
+---
+
+## 3. API Selection & Rationale
 
 We selected the **Windows Shell COM Automation API** (`Shell32.Shell` Namespace `ssfBITBUCKET`) implemented via .NET COM interop.
 - **Drive Agnosticism**: Handles multiple drives automatically. The Shell folder aggregates deleted items from all mounted volumes (`C:`, `D:`, etc.) into a single virtual namespace, resolving the correct volume internally.
 - **No Elevated Privileges**: Runs perfectly under standard user accounts.
-- **Absolute Read-Only Safety**: During this PoC phase, all operations are kept strictly read-only. No mutating Shell operations (such as empty or move) are executed.
+- **Explicit Commit Boundary**: Mutation operations are strictly isolated. No automated background changes occur. Every mutation requires explicit user confirmation.
 
-## 3. Capabilities & Metadata Available
+## 4. Capabilities & Metadata Available
 
 Through `Folder.GetDetailsOf`, the following metadata attributes are extracted:
 - **Filename**: The item name displayed in Windows.
@@ -33,15 +55,10 @@ Through `Folder.GetDetailsOf`, the following metadata attributes are extracted:
 - **Volume**: Parsed from the root of the original path (e.g., `C:`).
 - **Identifier**: Uniquely resolved by the shell path.
 
-## 4. Limitations & Unavailable Data
+## 5. Limitations & Unavailable Data
 
 - **Cryptographic Hashes**: It is impossible to calculate SHA-256 hashes of items inside the Windows Recycle Bin without copying or reading their complete byte stream. To avoid high I/O overhead, SmartBin treats Recycle Bin hashes as *unavailable* during initial analysis.
 - **Raw Byte Streams**: The Shell folder does not directly expose standard .NET `Stream` readers for deleted items. Reading or decompressing files requires copying them to a temporary path via the Shell, which is not performed in this read-only phase.
-
-## 5. Security & Multi-Volume Considerations
-
-- **Multi-Volume**: Since each drive contains its own `$Recycle.Bin` folder, the Shell COM API handles this transparently. It maps each item back to its correct volume, which we extract and display in the UI.
-- **Permissions**: Safe and secure. If a volume is inaccessible or encrypted (BitLocker locked), the Shell API filters it out gracefully.
 
 ## 6. Risks of Manipulation
 

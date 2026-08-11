@@ -2,14 +2,23 @@
 
 Data safety and absolute file preservation are the highest priorities of SmartBin. As an experimental project, SmartBin adopts defensive principles to ensure zero data loss.
 
-## Core Safety Rules (Phase 4 & Beyond)
+## Core Safety Rules (Phase 5 & Beyond)
 
 1. **No Permanent Deletion**: SmartBin never automatically permanently deletes user files. Reclaiming space is only achieved by non-destructive compression.
 2. **No Overwrites on Restore**: When restoring a file, if a file already exists at the destination path, SmartBin will never silently overwrite it. It throws a `SmartBinConflictException`, aborting the process to protect user data.
 3. **No External Modifications**: SmartBin only manages files placed inside its designated controlled storage area. It never alters files in place on the user's desktop or elsewhere.
 4. **No Real System Interception**: In this PoC phase, SmartBin does not hook into Windows Explorer or intercept system-level file deletion.
 5. **No Administrator Privileges Required**: SmartBin is designed to run in standard user mode without needing elevated permissions, keeping it isolated and secure.
-6. **Windows Recycle Bin Read-Only Safety**: During this phase, all Windows Recycle Bin operations are kept strictly read-only. SmartBin discovers, reads metadata, and performs read-only priority scoring analysis on Windows items. **It does not perform compression, replacement, deletion, or movement of real Windows Recycle Bin files.**
+6. **Windows Recycle Bin Read-Only Safety**: During regular operation, all Windows Recycle Bin interactions are kept strictly read-only. SmartBin discovers, reads metadata, and performs read-only priority scoring analysis on Windows items.
+7. **Controlled Experiment Commit Boundary (Phase 5)**: In the Controlled Experiment mode, a single Windows Recycle Bin item can be safely optimized. The operation must follow a strict sequential state machine:
+   - Secure Acquisition (coping content to `temp/`).
+   - Acquisition Verification (size check & original SHA-256 calculation).
+   - Atomic Compression (deflating to temporary file).
+   - Decompression Verification (decompressing and confirming SHA-256 matches original perfectly).
+   - Restoration Dry-Run (restoring to dry-run temp path and re-confirming SHA-256).
+   - Commit Boundary (presenting `ReadyForCommit` status to the user).
+   - Explicit User Confirmation (the original Recycle Bin item is only ever modified *after* all previous checks pass and the user gives explicit, manual confirmation to commit).
+   - Rollback Protection (any failure at any step before the final committed stage immediately cleans up all temporary files and leaves the original Recycle Bin item completely untouched).
 
 ## Failure Scenarios & Recovery Guarantees
 
