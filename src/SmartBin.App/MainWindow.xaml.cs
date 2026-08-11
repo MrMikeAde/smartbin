@@ -37,6 +37,10 @@ namespace SmartBin.App
         private OptimizationPlanner? _planner;
         private OptimizationExecutor? _executor;
 
+        // Phase 4 providers
+        private IRecycleBinProvider? _realWinProvider;
+        private IRecycleBinProvider? _simWinProvider;
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -75,7 +79,13 @@ namespace SmartBin.App
                 _planner = new OptimizationPlanner();
                 _executor = new OptimizationExecutor(_repository, _pressureMonitor, _compressionEngine);
 
+                // Phase 4 providers
+                _realWinProvider = new WindowsRecycleBinProvider();
+                _simWinProvider = new SimulatedRecycleBinProvider();
+
                 RefreshUI();
+                RefreshWinRecycleBinUI();
+
                 LogToTerminal("Adaptive Storage Dashboard Loaded.");
             }
             catch (Exception ex)
@@ -120,6 +130,26 @@ namespace SmartBin.App
             catch (Exception ex)
             {
                 LogToTerminal($"UI Refresh Error: {ex.Message}");
+            }
+        }
+
+        private async void RefreshWinRecycleBinUI()
+        {
+            // Favour simulation provider when simulation toggle switch is checked
+            var provider = (SimToggle != null && SimToggle.IsOn) ? _simWinProvider : _realWinProvider;
+            if (provider == null || WinItemsListView == null) return;
+
+            try
+            {
+                var items = (await provider.EnumerateItemsAsync()).ToList();
+                WinItemsListView.ItemsSource = items;
+
+                var stats = await provider.GetStatisticsAsync();
+                WinStatsText.Text = $"{stats.TotalItems} items ({stats.TotalSize / (1024 * 1024):N0} MB)";
+            }
+            catch (Exception ex)
+            {
+                LogToTerminal($"Recycle Bin Refresh Error: {ex.Message}");
             }
         }
 
@@ -183,6 +213,7 @@ namespace SmartBin.App
                 }
 
                 RefreshUI();
+                RefreshWinRecycleBinUI();
             }
             catch (Exception ex)
             {
@@ -320,6 +351,36 @@ namespace SmartBin.App
             {
                 LogToTerminal($"Selection Error: {ex.Message}");
             }
+        }
+
+        private void OnWinItemsSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_candidateAnalyzer == null || WinItemsListView.SelectedItem is not WindowsRecycleBinItem selectedItem) return;
+
+            try
+            {
+                // Retrieve read-only intelligence scoring and explainability for Windows item
+                var candidate = _candidateAnalyzer.AnalyzeWindowsItem(selectedItem);
+                LogToTerminal($"--- READ-ONLY ANALYSIS: {candidate.OriginalFileName} ---");
+                LogToTerminal($"Original path: {selectedItem.OriginalPath}");
+                LogToTerminal($"Size:          {selectedItem.Size:N0} bytes");
+                LogToTerminal($"Volume:        {selectedItem.Volume}");
+                LogToTerminal($"Priority Score: {candidate.PriorityScore:F1}");
+                LogToTerminal("Why?");
+                LogToTerminal(candidate.PriorityExplaination);
+                LogToTerminal("--------------------------------------");
+            }
+            catch (Exception ex)
+            {
+                LogToTerminal($"Selection Error: {ex.Message}");
+            }
+        }
+
+        private void OnRefreshWinClicked(object sender, RoutedEventArgs e)
+        {
+            LogToTerminal("Querying Windows Recycle Bin...");
+            RefreshWinRecycleBinUI();
+            LogToTerminal("Windows Recycle Bin Item list refreshed successfully.");
         }
     }
 }

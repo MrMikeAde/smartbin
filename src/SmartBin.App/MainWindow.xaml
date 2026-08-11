@@ -22,7 +22,7 @@
 
             <StackPanel Grid.Column="0">
                 <TextBlock Text="SmartBin Dashboard" Style="{ThemeResource HeaderTextBlockStyle}" FontWeight="SemiBold"/>
-                <TextBlock Text="Experimental Adaptive Recycle Bin PoC with Storage Intelligence" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
+                <TextBlock Text="Experimental Adaptive Recycle Bin PoC with Windows Recycle Bin Integration" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
@@ -43,7 +43,7 @@
             <!-- Left Panel: Summary & Metrics -->
             <StackPanel Grid.Column="0" Spacing="16" Margin="0,0,16,0">
 
-                <!-- NEW: Storage Pressure Simulator Panel -->
+                <!-- Storage Pressure Simulator Panel -->
                 <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                     <StackPanel Spacing="8">
                         <TextBlock Text="Storage Pressure Simulator" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium"/>
@@ -62,7 +62,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Storage Utilization Card -->
+                <!-- Storage Visualization -->
                 <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                     <StackPanel Spacing="8">
                         <TextBlock Text="Storage Visualization" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium"/>
@@ -111,7 +111,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Logs / Operations Status Output -->
+                <!-- Operation Terminal -->
                 <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Operation Terminal" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="Bold" Foreground="Gray"/>
@@ -122,56 +122,130 @@
                 </Border>
             </StackPanel>
 
-            <!-- Right Panel: SmartBin Items Grid -->
-            <Border Grid.Column="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+            <!-- Right Panel: Items tab view separating SmartBin from Windows Recycle Bin -->
+            <Pivot Grid.Column="1" Margin="8,0,0,0">
 
-                    <TextBlock Grid.Row="0" Text="Recoverable Items" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium" Margin="0,0,0,12"/>
+                <!-- Tab 1: SmartBin Controlled Items -->
+                <PivotItem Header="SmartBin Storage">
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
 
-                    <ListView x:Name="ItemsListView" Grid.Row="1" SelectionMode="Single" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SelectionChanged="OnItemsSelectionChanged">
-                        <ListView.HeaderTemplate>
-                            <DataTemplate>
-                                <Grid Padding="12,0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="200"/>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="120"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Filename" FontWeight="Bold"/>
-                                    <TextBlock Grid.Column="1" Text="Orig Size" FontWeight="Bold"/>
-                                    <TextBlock Grid.Column="2" Text="Stored Size" FontWeight="Bold"/>
-                                    <TextBlock Grid.Column="3" Text="Status" FontWeight="Bold"/>
-                                    <TextBlock Grid.Column="4" Text="SHA-256 Hash" FontWeight="Bold"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ListView.HeaderTemplate>
-                        <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Padding="12,6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="200"/>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="120"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding OriginalFileName}" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding OriginalSize}"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding CurrentStoredSize}"/>
-                                    <TextBlock Grid.Column="3" Text="{Binding CompressionStatus}"/>
-                                    <TextBlock Grid.Column="4" Text="{Binding Sha256Hash}" TextTrimming="CharacterEllipsis"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </Grid>
-            </Border>
+                            <TextBlock Grid.Row="0" Text="SmartBin Recoverable Items" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium" Margin="0,0,0,12"/>
+
+                            <ListView x:Name="ItemsListView" Grid.Row="1" SelectionMode="Single" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SelectionChanged="OnItemsSelectionChanged">
+                                <ListView.HeaderTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="12,0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="200"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="120"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Filename" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="1" Text="Orig Size" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="2" Text="Stored Size" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="3" Text="Status" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="4" Text="SHA-256 Hash" FontWeight="Bold"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.HeaderTemplate>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="12,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="200"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="120"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding OriginalFileName}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding OriginalSize}"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding CurrentStoredSize}"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding CompressionStatus}"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding Sha256Hash}" TextTrimming="CharacterEllipsis"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+                    </Border>
+                </PivotItem>
+
+                <!-- Tab 2: Windows Recycle Bin Integration (Phase 4) -->
+                <PivotItem Header="Windows Recycle Bin">
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0" Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                    <TextBlock Text="Windows Recycle Bin Items" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium"/>
+                                    <Border Background="Orange" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="READ-ONLY INTEGRATION" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                                    <TextBlock x:Name="WinStatsText" Text="Loading..." VerticalAlignment="Center" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                    <Button x:Name="RefreshWinBtn" Content="Refresh Bin" Click="OnRefreshWinClicked"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <ListView x:Name="WinItemsListView" Grid.Row="1" SelectionMode="Single" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SelectionChanged="OnWinItemsSelectionChanged">
+                                <ListView.HeaderTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="12,0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Filename" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="1" Text="Size" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="2" Text="Volume" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="3" Text="Date Deleted" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="4" Text="Original Location" FontWeight="Bold"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.HeaderTemplate>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="12,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding FileName}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Size}"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Volume}"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding DeletedTimestamp}"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding OriginalPath}" TextTrimming="CharacterEllipsis"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+                    </Border>
+                </PivotItem>
+            </Pivot>
         </Grid>
     </Grid>
 </Window>
