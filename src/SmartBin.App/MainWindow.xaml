@@ -1,0 +1,93 @@
+<Window
+    x:Class="SmartBin.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2000/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2000/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="SmartBin Dashboard">
+
+    <Grid Padding="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,24">
+            <TextBlock Text="SmartBin Dashboard" Style="{ThemeResource HeaderTextBlockStyle}"/>
+            <TextBlock Text="Experimental Adaptive Recycle Bin PoC" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
+        </StackPanel>
+
+        <!-- Main Grid -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="300"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Dashboard Left Side -->
+            <StackPanel Grid.Column="0" Spacing="16">
+                <!-- Storage Section -->
+                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Storage Visualization" Style="{ThemeResource SubheaderTextBlockStyle}"/>
+                        <ProgressBar Value="45" Minimum="0" Maximum="100" Height="24"/>
+                        <TextBlock Text="45% Capacity Used (Storage Pressure: Normal)" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Recoverable Items Section -->
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Recoverable Items" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                            <TextBlock Text="15" Style="{ThemeResource TitleLargeTextBlockStyle}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Space Reclaimed" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                            <TextBlock Text="78 GB" Style="{ThemeResource TitleLargeTextBlockStyle}" Foreground="Green"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Original Storage Size" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                            <TextBlock Text="120 GB" Style="{ThemeResource TitleTextBlockStyle}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Stored Size" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                            <TextBlock Text="42 GB" Style="{ThemeResource TitleTextBlockStyle}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </StackPanel>
+
+            <!-- Dashboard Right Side (Recent Items placeholder) -->
+            <Border Grid.Column="1" Margin="16,0,0,0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Recent Items" Style="{ThemeResource SubheaderTextBlockStyle}"/>
+                    <TextBlock Text="[ Placeholder - Recent operations will appear here ]" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

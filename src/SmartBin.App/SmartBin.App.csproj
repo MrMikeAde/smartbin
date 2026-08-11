@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework Condition="'$(OS)' == 'Windows_NT'">net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework Condition="'$(OS)' != 'Windows_NT'">net10.0</TargetFramework>
+    <TargetPlatformMinVersion Condition="'$(OS)' == 'Windows_NT'">10.0.17763.0</TargetPlatformMinVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <UseWinUI Condition="'$(OS)' == 'Windows_NT'">true</UseWinUI>
+    <PublishProfile>win10-x64</PublishProfile>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifier Condition="'$(OS)' == 'Windows_NT'">win10-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <!-- Conditional compile constants for Windows -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <DefineConstants>WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Conditional compilation items for Windows -->
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.241114003" />
+  </ItemGroup>
+
+  <!-- Conditional items for non-Windows (e.g. Linux sandbox) to prevent build failures -->
+  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+    <Compile Remove="App.xaml.cs" />
+    <Compile Remove="MainWindow.xaml.cs" />
+    <None Include="App.xaml.cs" />
+    <None Include="MainWindow.xaml.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SmartBin.Core\SmartBin.Core.csproj" />
+  </ItemGroup>
+</Project>
