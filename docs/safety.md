@@ -2,7 +2,7 @@
 
 Data safety and absolute file preservation are the highest priorities of SmartBin. As an experimental project, SmartBin adopts defensive principles to ensure zero data loss.
 
-## Core Safety Rules (Phase 5 & Beyond)
+## Core Safety Rules (Phase 6 & Beyond)
 
 1. **No Permanent Deletion**: SmartBin never automatically permanently deletes user files. Reclaiming space is only achieved by non-destructive compression.
 2. **No Overwrites on Restore**: When restoring a file, if a file already exists at the destination path, SmartBin will never silently overwrite it. It throws a `SmartBinConflictException`, aborting the process to protect user data.
@@ -10,7 +10,7 @@ Data safety and absolute file preservation are the highest priorities of SmartBi
 4. **No Real System Interception**: In this PoC phase, SmartBin does not hook into Windows Explorer or intercept system-level file deletion.
 5. **No Administrator Privileges Required**: SmartBin is designed to run in standard user mode without needing elevated permissions, keeping it isolated and secure.
 6. **Windows Recycle Bin Read-Only Safety**: During regular operation, all Windows Recycle Bin interactions are kept strictly read-only. SmartBin discovers, reads metadata, and performs read-only priority scoring analysis on Windows items.
-7. **Controlled Experiment Commit Boundary (Phase 5)**: In the Controlled Experiment mode, a single Windows Recycle Bin item can be safely optimized. The operation must follow a strict sequential state machine:
+7. **Controlled Experiment Commit Boundary**: In the Controlled Experiment mode, a single Windows Recycle Bin item can be safely optimized. The operation must follow a strict sequential state machine:
    - Secure Acquisition (coping content to `temp/`).
    - Acquisition Verification (size check & original SHA-256 calculation).
    - Atomic Compression (deflating to temporary file).
@@ -19,6 +19,11 @@ Data safety and absolute file preservation are the highest priorities of SmartBi
    - Commit Boundary (presenting `ReadyForCommit` status to the user).
    - Explicit User Confirmation (the original Recycle Bin item is only ever modified *after* all previous checks pass and the user gives explicit, manual confirmation to commit).
    - Rollback Protection (any failure at any step before the final committed stage immediately cleans up all temporary files and leaves the original Recycle Bin item completely untouched).
+8. **Automatic Optimization Safety Floor**: In automatic background protection mode, SmartBin enforces strict, non-negotiable safety conditions:
+   - **Mode Disabled by Default**: Automatic protection is strictly OFF by default and must be manually activated.
+   - **Safety Floor / Safety Margin Protection**: If the available space is below the hard safety floor (default: 5 GB), automatic compression is completely disabled, protecting system resources from starvation.
+   - **Power-Awareness**: Background optimizations are automatically paused when the system is running on battery power to prevent power draining.
+   - **One-Item-at-a-Time Limit**: Restricts automatic processing to exactly one file per cycle, sequentially rechecking drive space and revalidating candidates (confirming they still exist, sizes match, and paths match) before every single operation.
 
 ## Failure Scenarios & Recovery Guarantees
 
@@ -46,8 +51,9 @@ Data safety and absolute file preservation are the highest priorities of SmartBi
   - It is then moved atomically to the destination directory. If writing/moving fails, the database remains in a `Pending` state, and the original compressed representation inside SmartBin objects remains fully intact, ensuring no data is ever lost.
   - Any failed restoration cleans up temporary files immediately.
 
-### 4. Storage Intelligence Safeguards
-- **Minimum Free Space Protection**: Before any compression occurs, the executor checks the `StoragePressureMonitor`. If the available space has already met the safety target, compression halts immediately to preserve resources.
-- **Cancellation**: Both compression and optimization executions actively listen to `CancellationToken`, stopping immediately and cleanly rolling back any temporary files if the user cancels.
-- **Stale Plan Safety (Revalidation)**: SmartBin never blindly executes a plan created earlier. Before modifying a file, it re-queries the database to confirm that the file hasn't already been restored or modified in the meantime, skipping any stale candidate targets.
-- **No Direct `$Recycle.Bin` Manipulation**: SmartBin does not manually edit directories or modify `$I` or `$R` metadata files directly. All interaction with the native Recycle Bin is routed through official, safe Windows Shell APIs.
+### 4. Crash Recovery & Ambiguous Artifacts Cleanup
+- **Scenario**: The application crashes or the system shuts down during a background optimization.
+- **Defense**:
+  - Upon next boot, the `CrashRecoveryService` automatically scans the controlled `temp/` folder.
+  - Any intermediate `.acq`, `.zip`, `.unzip`, `.restore`, or `.dryrestore` files are safely identified and cleaned up.
+  - Ensures no corrupted or half-written temporary files are ever locked or assumed successful, keeping the system state 100% clean and consistent.

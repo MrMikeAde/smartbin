@@ -22,7 +22,7 @@
 
             <StackPanel Grid.Column="0">
                 <TextBlock Text="SmartBin Dashboard" Style="{ThemeResource HeaderTextBlockStyle}" FontWeight="SemiBold"/>
-                <TextBlock Text="Experimental Adaptive Recycle Bin PoC with Storage Intelligence" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
+                <TextBlock Text="Experimental Adaptive Recycle Bin PoC with Background Storage Protection" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
@@ -36,8 +36,10 @@
         <!-- Main Dashboard View -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="350"/>
-                <ColumnDefinition Width="*"/>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="350"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
             </Grid.ColumnDefinitions>
 
             <!-- Left Panel: Summary & Metrics -->
@@ -122,7 +124,7 @@
                 </Border>
             </StackPanel>
 
-            <!-- Right Panel: Items pivot tab separating SmartBin, Windows Recycle Bin, and Controlled Experiment -->
+            <!-- Right Panel: Items pivot tabs separating SmartBin, Windows Recycle Bin, Controlled Experiment, Settings, and Activity History -->
             <Pivot Grid.Column="1" Margin="8,0,0,0">
 
                 <!-- Tab 1: SmartBin Controlled Items -->
@@ -141,11 +143,13 @@
                                     <DataTemplate>
                                         <Grid Padding="12,0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="200"/>
-                                                <ColumnDefinition Width="100"/>
-                                                <ColumnDefinition Width="100"/>
-                                                <ColumnDefinition Width="120"/>
-                                                <ColumnDefinition Width="*"/>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="200"/>
+                                                    <ColumnDefinition Width="100"/>
+                                                    <ColumnDefinition Width="100"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="Filename" FontWeight="Bold"/>
                                             <TextBlock Grid.Column="1" Text="Orig Size" FontWeight="Bold"/>
@@ -246,7 +250,7 @@
                     </Border>
                 </PivotItem>
 
-                <!-- NEW: Tab 3: Controlled Experiment Panel (Phase 5) -->
+                <!-- Tab 3: Controlled Experiment Panel -->
                 <PivotItem Header="Controlled Experiment">
                     <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -300,7 +304,7 @@
                                             <TextBlock x:Name="Check4" Text="PENDING" HorizontalAlignment="Right" Foreground="Gray" FontWeight="Bold"/>
                                         </Grid>
                                         <Grid>
-                                            <TextBlock Text="• Compressed Verified (Decompress &amp; Match Hash)" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                            <TextBlock Text="• Compressed Verified" Style="{ThemeResource CaptionTextBlockStyle}"/>
                                             <TextBlock x:Name="Check5" Text="PENDING" HorizontalAlignment="Right" Foreground="Gray" FontWeight="Bold"/>
                                         </Grid>
                                         <Grid>
@@ -316,12 +320,14 @@
                                 <StackPanel Spacing="12">
                                     <TextBlock Text="Commit Decision Boundary" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
                                     <TextBlock x:Name="CommitStatusText" Text="Status: WAITING FOR PIPELINE CHECKS" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="Bold" Foreground="DarkBlue"/>
-                                    <CheckBox x:Name="MutationCheck" Content="Execute Windows Mutation (Permanently remove original Recycle Bin item after successful verification)"/>
-                                    <TextBlock Text="Warning: Windows mutation will invoke a supported COM Shell API action to remove the original item. If mutation is unsupported/unchecked, the verified compressed representation is preserved inside SmartBin, and the Recycle Bin item is untouched." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="DarkRed" TextWrapping="Wrap"/>
+                                    <CheckBox x:Name="MutationCheck" Content="Execute Windows Mutation"/>
+                                    <TextBlock Text="Warning: Windows mutation will permanently remove the original item. If unchecked, the verified compressed representation is preserved inside SmartBin, and the Recycle Bin item is untouched." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="DarkRed" TextWrapping="Wrap"/>
                                     <Grid ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
+                                            <Grid.ColumnDefinitions>
+                                                <Grid.ColumnDefinition Width="*"/>
+                                                <Grid.ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
                                         </Grid.ColumnDefinitions>
                                         <Button x:Name="CommitExpBtn" Grid.Column="0" Content="Commit Controlled Experiment" Click="OnCommitExperimentClicked" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" HorizontalAlignment="Stretch"/>
                                         <Button x:Name="KeepCopyBtn" Grid.Column="1" Content="Keep SmartBin Copy (No Mutation)" Click="OnKeepCopyClicked" IsEnabled="False" HorizontalAlignment="Stretch"/>
@@ -329,6 +335,116 @@
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
+                    </Border>
+                </PivotItem>
+
+                <!-- NEW: Tab 4: Settings Page (Phase 6) -->
+                <PivotItem Header="Settings">
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="16">
+                                <TextBlock Text="Storage Protection &amp; Policy Settings" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Bold"/>
+                                <MenuFlyoutSeparator/>
+
+                                <!-- Mode selection -->
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Automatic Optimization Mode" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
+                                    <RadioButton x:Name="ModeOffRadio" Content="OFF (No automatic optimizations occur)" IsChecked="True" Checked="OnSettingsChanged"/>
+                                    <RadioButton x:Name="ModeNotifyRadio" Content="NOTIFY ME (Scan and warn when space is low)" Checked="OnSettingsChanged"/>
+                                    <RadioButton x:Name="ModeAutoRadio" Content="AUTOMATIC (Compress files sequentially to free space)" Checked="OnSettingsChanged"/>
+                                </StackPanel>
+
+                                <MenuFlyoutSeparator/>
+
+                                <!-- Thresholds -->
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="Storage Thresholds" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
+                                    <Grid>
+                                        <TextBlock Text="Low Storage Threshold Percentage (e.g. 15%)" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="LowThresholdInput" Text="15" Width="80" HorizontalAlignment="Right" TextChanged="OnSettingsChanged"/>
+                                    </Grid>
+                                    <Grid>
+                                        <TextBlock Text="Critical Storage Threshold Percentage (e.g. 5%)" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="CritThresholdInput" Text="5" Width="80" HorizontalAlignment="Right" TextChanged="OnSettingsChanged"/>
+                                    </Grid>
+                                    <Grid>
+                                        <TextBlock Text="Target Free-Space Percentage (e.g. 20%)" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="TargetPercentInput" Text="20" Width="80" HorizontalAlignment="Right" TextChanged="OnSettingsChanged"/>
+                                    </Grid>
+                                    <Grid>
+                                        <TextBlock Text="Hard Safety Floor / Safety Margin (GB, e.g. 5)" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="SafetyFloorInput" Text="5" Width="80" HorizontalAlignment="Right" TextChanged="OnSettingsChanged"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <MenuFlyoutSeparator/>
+
+                                <!-- Resource controls -->
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="Resource Awareness &amp; Limits" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
+                                    <ToggleSwitch x:Name="BatteryPauseToggle" Header="Pause on Battery Power" IsOn="True" Toggled="OnSettingsChanged"/>
+                                    <Grid>
+                                        <TextBlock Text="Maximum candidates optimized per session" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="MaxItemsInput" Text="5" Width="80" HorizontalAlignment="Right" TextChanged="OnSettingsChanged"/>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </PivotItem>
+
+                <!-- NEW: Tab 5: Activity Log Page (Phase 6) -->
+                <PivotItem Header="Activity History">
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Activity Log and Scans History" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium" Margin="0,0,0,12"/>
+
+                            <ListView x:Name="ActivityListView" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <ListView.HeaderTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="12,0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Timestamp" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="1" Text="Operation" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="2" Text="State" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="3" Text="Reclaimed" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="4" Text="Rationale" FontWeight="Bold"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.HeaderTemplate>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="12,6">
+                                            <Grid.ColumnDefinitions>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="100"/>
+                                                    <ColumnDefinition Width="100"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Timestamp}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding OperationType}" FontWeight="SemiBold"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding ResultState}"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding ReclaimedBytes}"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding Rationale}" TextTrimming="CharacterEllipsis"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
                     </Border>
                 </PivotItem>
             </Pivot>

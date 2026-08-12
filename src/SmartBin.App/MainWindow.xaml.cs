@@ -24,6 +24,7 @@ namespace SmartBin.App
     {
         private SmartBinDbContext? _dbContext;
         private EfSmartBinRepository? _repository;
+        private ActivityRepository? _activityRepository;
         private Sha256FileHasher? _fileHasher;
         private DefaultStoragePathProvider? _pathProvider;
         private StorageManager? _storageManager;
@@ -46,6 +47,12 @@ namespace SmartBin.App
         private ControlledExperimentEngine? _experimentEngine;
         private WindowsRecycleBinItem? _selectedWinItem;
         private ControlledExperimentItem? _currentExperiment;
+
+        // Phase 6 background services
+        private WindowsPowerStateProvider? _powerStateProvider;
+        private StorageMonitor? _storageMonitor;
+        private NotificationService? _notificationService;
+        private AutomaticProtectionEngine? _autoEngine;
 
         public MainWindow()
         {
@@ -70,6 +77,7 @@ namespace SmartBin.App
                 _dbContext.Database.EnsureCreated();
 
                 _repository = new EfSmartBinRepository(_dbContext);
+                _activityRepository = new ActivityRepository(_dbContext);
                 _fileHasher = new Sha256FileHasher();
                 _pathProvider = new DefaultStoragePathProvider(storageRoot);
                 _storageManager = new StorageManager(_pathProvider);
@@ -98,6 +106,47 @@ namespace SmartBin.App
                     _fileHasher,
                     _storageManager);
 
+                // Phase 6 background protection
+                _powerStateProvider = new WindowsPowerStateProvider();
+                _notificationService = new NotificationService();
+                _autoEngine = new AutomaticProtectionEngine(
+                    _repository,
+                    _activityRepository,
+                    _pressureMonitor,
+                    _powerStateProvider,
+                    _simWinProvider, // Default to simulated for read-write safety
+                    _candidateAnalyzer,
+                    _planner,
+                    _experimentEngine,
+                    _notificationService);
+
+                // Wire notification logger
+                _notificationService.NotificationRaised += (msg, type) =>
+                {
+                    DispatcherQueue.TryEnqueue(() => LogToTerminal($"[NOTIFICATION - {type.ToUpperInvariant()}] {msg}"));
+                };
+
+                // Startup recovery check
+                var recovery = new CrashRecoveryService(_storageManager);
+                int sweptCount = recovery.PerformStartupRecoveryAndCleanup();
+                if (sweptCount > 0)
+                {
+                    LogToTerminal($"[Crash Recovery] Swept {sweptCount} intermediate residual files.");
+                }
+
+                // Storage monitor loop
+                _storageMonitor = new StorageMonitor(_pressureMonitor);
+                _storageMonitor.PressureStateChanged += async (metrics) =>
+                {
+                    // Run automatic rules sequentially when metrics state changes!
+                    if (_autoEngine != null)
+                    {
+                        await _autoEngine.RunAutomaticProtectionAsync();
+                        DispatcherQueue.TryEnqueue(RefreshUI);
+                    }
+                };
+                _storageMonitor.StartMonitoring(TimeSpan.FromSeconds(60)); // Standard 60 sec polling
+
                 RefreshUI();
                 RefreshWinRecycleBinUI();
 
@@ -111,7 +160,7 @@ namespace SmartBin.App
 
         private async void RefreshUI()
         {
-            if (_repository == null || _pressureMonitor == null || _candidateAnalyzer == null) return;
+            if (_repository == null || _pressureMonitor == null || _candidateAnalyzer == null || _activityRepository == null) return;
 
             try
             {
@@ -141,6 +190,10 @@ namespace SmartBin.App
 
                 var isSim = _pressureMonitor.MockMetricsOverride != null ? " (SIMULATION)" : "";
                 StorageStatusText.Text = $"{metrics.FreeSpacePercentage:F1}% Free Space ({metrics.PressureState}{isSim})";
+
+                // Populate Activity logs list
+                var logs = await _activityRepository.GetLogsAsync();
+                ActivityListView.ItemsSource = logs;
             }
             catch (Exception ex)
             {
@@ -553,6 +606,44 @@ namespace SmartBin.App
             {
                 LogToTerminal($"Commit Failed: {ex.Message}");
             }
+        }
+
+        private void OnSettingsChanged(object sender, RoutedEventArgs e)
+        {
+            if (_autoEngine == null || LowThresholdInput == null || CritThresholdInput == null || TargetPercentInput == null || SafetyFloorInput == null) return;
+
+            try
+            {
+                // Sync UI inputs with the active settings policy model
+                if (ModeOffRadio.IsChecked == true) _autoEngine.Settings.Mode = AutoOptimizationMode.Off;
+                else if (ModeNotifyRadio.IsChecked == true) _autoEngine.Settings.Mode = AutoOptimizationMode.NotifyMe;
+                else if (ModeAutoRadio.IsChecked == true) _autoEngine.Settings.Mode = AutoOptimizationMode.Automatic;
+
+                if (double.TryParse(LowThresholdInput.Text, out var low)) _autoEngine.Settings.LowPressureThresholdPercentage = low;
+                if (double.TryParse(CritThresholdInput.Text, out var crit)) _autoEngine.Settings.CriticalPressureThresholdPercentage = crit;
+                if (double.TryParse(TargetPercentInput.Text, out var target)) _autoEngine.Settings.TargetFreeSpacePercentage = target;
+
+                if (long.TryParse(SafetyFloorInput.Text, out var floorGb))
+                {
+                    _autoEngine.Settings.MinimumSafetyMarginBytes = floorGb * 1024L * 1024 * 1024;
+                }
+
+                _autoEngine.Settings.PauseOnBattery = BatteryPauseToggle.IsOn;
+
+                if (int.TryParse(MaxItemsInput.Text, out var max)) _autoEngine.Settings.MaxItemsPerSession = max;
+
+                LogToTerminal("✓ Settings saved successfully.");
+                RefreshUI();
+            }
+            catch (Exception ex)
+            {
+                LogToTerminal($"Settings Error: {ex.Message}");
+            }
+        }
+
+        private void OnSettingsChanged(object sender, TextChangedEventArgs e)
+        {
+            OnSettingsChanged(sender, (RoutedEventArgs)null!);
         }
     }
 }

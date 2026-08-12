@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SmartBin.Contracts;
 using SmartBin.Core.Models;
 
 namespace SmartBin.Infrastructure.Persistence
@@ -10,6 +11,7 @@ namespace SmartBin.Infrastructure.Persistence
         }
 
         public DbSet<SmartBinItem> SmartBinItems { get; set; } = null!;
+        public DbSet<ActivityLog> ActivityLogs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -30,6 +32,14 @@ namespace SmartBin.Infrastructure.Persistence
 
                 entity.Property(e => e.RestorationStatus)
                     .HasConversion<int>();
+            });
+
+            modelBuilder.Entity<ActivityLog>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Timestamp).IsRequired();
+                entity.Property(e => e.OperationType).IsRequired();
+                entity.Property(e => e.ResultState).IsRequired();
             });
         }
     }
