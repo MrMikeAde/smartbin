@@ -96,7 +96,7 @@ namespace SmartBin.Core.Services
             bulletPoints.Add("• Not currently compressed");
             bulletPoints.Add("• Location: Windows Recycle Bin (Read-only Analysis)");
 
-            candidate.IsEligibleForOptimization = false; // Real Windows items are read-only in this Phase
+            candidate.IsEligibleForOptimization = candidate.EstimatedSavingsBytes > 0;
             candidate.PriorityExplaination = string.Join("\n", bulletPoints);
 
             return candidate;

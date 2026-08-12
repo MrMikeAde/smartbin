@@ -95,8 +95,8 @@ namespace SmartBin.Core.Tests
             Assert.Contains("Large file", candidate.PriorityExplaination);
             Assert.Contains("15 days old", candidate.PriorityExplaination);
 
-            // SAFETY GATES: Real Windows Recycle Bin items must NEVER be eligible for automatic compression or modification in Phase 4!
-            Assert.False(candidate.IsEligibleForOptimization);
+            // In Phase 5 & 6, real/simulated Windows Recycle Bin items are eligible for optimization if they are compressible.
+            Assert.True(candidate.IsEligibleForOptimization);
         }
 
         private class MockRepository : ISmartBinRepository<SmartBinItem>

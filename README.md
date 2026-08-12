@@ -24,23 +24,23 @@ restore
 exact original 20 GB file
 ```
 
-## Working Prototype (Phase 5)
-SmartBin includes a fully functional **Controlled Real-World Optimization Proof**:
-- **Controlled Experiment Mode**: Safely runs a highly structured, 11-step verification experiment on exactly ONE selected Windows Recycle Bin item. No background or batch optimization occurs.
-- **Strict State Machine**: Tracks transitions dynamically (`Discovered`, `Acquired`, `AcquisitionVerified`, `Compressed`, `CompressionVerified`, `RestorationVerified`, `ReadyForCommit`, `Committed`, `Failed`, etc.) to guarantee absolute safety and recoverability.
-- **Secure Acquisition & Hashing**: Streams file contents securely into `temp/` without modifying the original item. Calculates deterministic original SHA-256 and checks file size matches exactly.
-- **Verification Dry-Runs**: Automatically compresses, decompresses, and performs a restoration dry-run in temporary storage, verifying SHA-256 byte-for-byte, before ever considering a commit.
-- **Explicit Commit Boundary**: Transitions to `READY FOR COMMIT`. The user must give explicit manual confirmation before any final commit.
-- **Safe COM Verb Mutation**: Connects to Windows `ssfBITBUCKET (10)` Shell COM APIs to safely trigger single-item undelete (`InvokeVerb("restore")`) and permanent deletion (`InvokeVerb("delete")`) under standard user permissions, providing robust file rollbacks on any failure.
-- **Test File Generator**: Includes a built-in generator to easily create compressible/incompressible test files (10MB, 100MB, 500MB, 1GB) for safe verification.
-- **Storage Simulator**: Includes an interactive programmatic simulator to dry-run different pressure constraints safely.
+## Working Prototype (Phase 6)
+SmartBin is a fully functional **Automatic Storage Protection** application:
+- **Background Disk Space Monitoring**: Leverages `DriveInfo` system APIs to observe drive space at a configurable interval. Transition states (`Normal`, `Low`, `Critical`) raise dynamic, throttled events.
+- **Configurable Settings Policy**: Offers full user settings controls: automatic optimization toggle (`OFF`, `NOTIFY ME`, `AUTOMATIC`), low/critical space threshold percentages, safety floor margin (default: 5 GB), and battery-saving pause configurations.
+- **Failsafe Safety Floor & Power-Awareness**: Enforces a non-negotiable safety floor. Pauses background optimization if free space is below the Safety Floor or if running on battery power (using native `GetSystemPowerStatus` P/Invoke).
+- **Sequential One-Item-at-a-Time Execution**: For automatic optimization, processes exactly **one successful item per loop cycle**. Rechecks spaces and revalidates candidates (confirming they still exist, sizes match, and paths match) before every single operation to prevent stale plans.
+- **Crash Recovery & Cleanup**: Scans the controlled `temp/` folder on startup (`CrashRecoveryService`) to identify and clean up intermediate `.acq`, `.zip`, `.unzip`, and `.restore` residual files from crashed or interrupted runs.
+- **Throttled Non-Spam Notifications**: Implements debounced notifications with cooldown throttling for alerts.
+- **Activity History Logs**: Records detailed transactional activity history logs directly to the metadata SQLite DB.
+- **WinUI 3 Dashboard Redesign**: Upgraded with a Settings Page, Activity History logs grid, and real-time simulator overrides.
 
 ## Project Structure
-- `src/SmartBin.App`: WinUI 3 dashboard desktop application shell (with separate controlled storage, read-only Windows Recycle Bin, and Controlled Experiment tabs, supporting conditional headless live demo mode on Linux).
-- `src/SmartBin.Core`: Core domain models, state enums, heuristics, priority scorers, batch planners, executors, simulated Recycle Bin providers, test file generators, and Phase 5 Controlled Experiment engines.
-- `src/SmartBin.Infrastructure`: SQLite database, EF Core persistence, stream-based hashing, storage managers, ZIP compression, and native Windows Shell COM Recycle Bin mutation services.
+- `src/SmartBin.App`: WinUI 3 dashboard desktop application shell (with separate controlled storage, read-only Windows Recycle Bin, Controlled Experiment, Settings, and Activity History tabs, supporting conditional headless live demo mode on Linux).
+- `src/SmartBin.Core`: Core domain models, state enums, heuristics, priority scorers, batch planners, executors, simulated Recycle Bin providers, test file generators, and Phase 6 background protection engines.
+- `src/SmartBin.Infrastructure`: SQLite database, EF Core persistence, activity logs, stream-based hashing, storage managers, ZIP compression, native Windows Shell COM Recycle Bin mutation services, and Windows power line P/Invokes.
 - `src/SmartBin.Contracts`: Common interfaces, custom exception definitions, and service contracts.
-- `tests/`: 59 automated unit and integration tests validating safe import, heuristics, scoring models, batch planners, simulated Windows Recycle Bin, and Phase 5 state machine rollbacks.
+- `tests/`: 64 automated unit and integration tests validating safe import, heuristics, scoring models, batch planners, simulated Windows Recycle Bin, and Phase 6 automatic settings, safety floors, and crash recovery rollbacks.
 
 ## Safety Philosophy
 Data integrity is our highest priority.
@@ -59,7 +59,7 @@ Data integrity is our highest priority.
    ```bash
    dotnet test smartbin.sln
    ```
-4. Run the live demo console simulation (featuring simulated pressure, candidate explanation, batch planning, read-only Windows Recycle Bin enumeration, and actual space recovery updates) using:
+4. Run the live demo console simulation (featuring simulated pressure, candidate explanation, batch planning, startup crash recovery sweep, power-awareness battery checks, background protection, and actual space recovery updates) using:
    ```bash
    dotnet run --project src/SmartBin.App
    ```

@@ -16,7 +16,7 @@ using SmartBin.Infrastructure.Storage;
 namespace SmartBin.App
 {
     /// <summary>
-    /// Program class to bootstrap the application and run interactive headless Phase 5 simulation on Linux.
+    /// Program class to bootstrap the application and run interactive headless Phase 6 background protection simulation.
     /// </summary>
     public static class Program
     {
@@ -47,20 +47,21 @@ namespace SmartBin.App
 
         private static async Task RunMockDashboardAsync()
         {
-            Console.WriteLine("\n[Running Headless Phase 5 Controlled Experiment Proof (Linux Sandbox)]\n");
+            Console.WriteLine("\n[Running Headless Phase 6 Automatic Storage Protection Demo (Linux Sandbox)]\n");
 
-            var demoRootDir = Path.Combine(Path.GetTempPath(), "SmartBinPhase5Demo_" + Guid.NewGuid().ToString("N"));
+            var demoRootDir = Path.Combine(Path.GetTempPath(), "SmartBinPhase6Demo_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(demoRootDir);
 
             // DB Setup
             var options = new DbContextOptionsBuilder<SmartBinDbContext>()
-                .UseSqlite($"Data Source={Path.Combine(demoRootDir, "smartbin_p5_demo.db")}")
+                .UseSqlite($"Data Source={Path.Combine(demoRootDir, "smartbin_p6_demo.db")}")
                 .Options;
 
             using var dbContext = new SmartBinDbContext(options);
             await dbContext.Database.EnsureCreatedAsync();
 
             var repository = new EfSmartBinRepository(dbContext);
+            var activityRepository = new ActivityRepository(dbContext);
             var fileHasher = new Sha256FileHasher();
             var pathProvider = new DefaultStoragePathProvider(demoRootDir);
             var storageManager = new StorageManager(pathProvider);
@@ -74,86 +75,107 @@ namespace SmartBin.App
                 fileHasher,
                 storageManager);
 
-            // Phase 5 Provider Setup (Simulated for Headless Environment)
-            IRecycleBinProvider winProvider = new SimulatedRecycleBinProvider();
+            var pressureMonitor = new StoragePressureMonitor(pathProvider);
+            var pressureSimulator = new StoragePressureSimulator(pressureMonitor);
+            var notificationService = new NotificationService();
+            var candidateAnalyzer = new CandidateAnalyzer(repository);
+            var planner = new OptimizationPlanner();
 
-            Console.WriteLine("--> Discovering Windows Recycle Bin Items...");
-            var winItems = (await winProvider.EnumerateItemsAsync()).ToList();
+            var fakePowerState = new FakePowerStateProvider(isOnBattery: false);
 
-            // Select exactly ONE item for our controlled experiment
-            var targetItem = winItems.First(i => i.FileName == "database.sql");
+            var autoEngine = new AutomaticProtectionEngine(
+                repository,
+                activityRepository,
+                pressureMonitor,
+                fakePowerState,
+                new SimulatedRecycleBinProvider(), // Deterministic fake Windows items
+                candidateAnalyzer,
+                planner,
+                experimentEngine,
+                notificationService);
 
-            Console.WriteLine($"\n========================================================");
-            Console.WriteLine("                CONTROLLED EXPERIMENT                   ");
-            Console.WriteLine("========================================================");
-            Console.WriteLine($"Selected Recycle Bin Item: {targetItem.FileName}");
-            Console.WriteLine($"Original Size:             {targetItem.Size / (1024 * 1024):N0} MB");
-            Console.WriteLine($"Original Location:         {targetItem.OriginalPath}");
-            Console.WriteLine($"Volume:                    {targetItem.Volume}");
-            Console.WriteLine("--------------------------------------------------------");
-            Console.WriteLine("SmartBin will perform a controlled experiment on this ONE item.");
-            Console.WriteLine("No automatic or batch optimization will occur.");
-            Console.WriteLine("========================================================\n");
-
-            Console.WriteLine("--> Running Pipeline Safety Checks (State Machine transitions):");
-
-            try
+            // Connect user notifications to the terminal logger
+            notificationService.NotificationRaised += (msg, type) =>
             {
-                var experiment = await experimentEngine.PrepareAndVerifyAsync(
-                    targetItem,
-                    state => Console.WriteLine($"  [State Changed] -> {state}"));
+                Console.WriteLine($"\n[NOTIFICATION - {type.ToUpperInvariant()}] {msg}");
+            };
 
-                Console.WriteLine("\n--------------------------------------------------------");
-                Console.WriteLine("SAFETY CHECKS PASSED:");
-                Console.WriteLine("✓ Item identified");
-                Console.WriteLine("✓ Content acquired securely");
-                Console.WriteLine($"✓ SHA-256 calculated: {experiment.OriginalSha256}");
-                Console.WriteLine($"✓ Compression completed: {experiment.CompressedSize / (1024 * 1024):N0} MB stored");
-                Console.WriteLine($"✓ Compressed representation verified");
-                Console.WriteLine("✓ Restoration test passed byte-for-byte");
-                Console.WriteLine("--------------------------------------------------------");
-                Console.WriteLine("Status: READY FOR COMMIT");
-                Console.WriteLine("--------------------------------------------------------");
-                Console.WriteLine($"Original Size:     {experiment.OriginalSize:N0} bytes");
-                Console.WriteLine($"Stored Size:       {experiment.CompressedSize:N0} bytes");
-                Console.WriteLine($"Verified Savings:  {experiment.ActualSavingsBytes:N0} bytes (Ratio: {experiment.CompressionRatio:F2})");
-                Console.WriteLine("--------------------------------------------------------");
+            // 1. Startup Crash Recovery & Cleanup scan
+            Console.WriteLine("--> Running Startup Crash Recovery...");
+            var recoveryService = new CrashRecoveryService(storageManager);
 
-                // Explicit Commit Boundary
-                Console.WriteLine("\n--> Requiring Explicit User Confirmation...");
-                Console.WriteLine("Confirming commit: [Yes]");
+            // Create some fake intermediate garbage files in temp/ directory to simulate cleanup
+            var tempDir = Path.Combine(demoRootDir, "temp");
+            Directory.CreateDirectory(tempDir);
+            await File.WriteAllTextAsync(Path.Combine(tempDir, "temp_garbage.zip"), "unfinished zip data");
+            await File.WriteAllTextAsync(Path.Combine(tempDir, "temp_garbage.acq"), "unfinished acq data");
 
-                // In headless demo, we complete commit without real Windows mutation (no real Recycle Bin item is removed)
-                await experimentEngine.CommitExperimentAsync(
-                    experiment,
-                    executeWindowsMutation: false,
-                    state => Console.WriteLine($"  [State Changed] -> {state}"));
+            int cleanedCount = recoveryService.PerformStartupRecoveryAndCleanup();
+            Console.WriteLine($"✓ Cleanup complete. Successfully swept {cleanedCount} intermediate residual files.");
 
-                Console.WriteLine("\n✓ Controlled Experiment Committed successfully.");
-                Console.WriteLine("SmartBin has safely saved the verified compressed copy.");
-                Console.WriteLine("Original Windows Recycle Bin entry remains untouched.");
+            // 2. Configure user policy settings
+            Console.WriteLine("\n--> Configuring User Policy Settings (Disabled by default)...");
+            Console.WriteLine($"Policy State: Mode = {autoEngine.Settings.Mode}, Safety Floor = {autoEngine.Settings.MinimumSafetyMarginBytes / (1024 * 1024 * 1024):N0} GB, Pause on Battery = {autoEngine.Settings.PauseOnBattery}");
 
-                // Show database entry
-                var dbItems = (await repository.GetAllAsync()).ToList();
-                Console.WriteLine($"\nStored SmartBin Items in Metadata DB: {dbItems.Count}");
-                foreach (var dbItem in dbItems)
-                {
-                    Console.WriteLine($"- {dbItem.OriginalFileName} (Size: {dbItem.OriginalSize:N0} -> Stored: {dbItem.CurrentStoredSize:N0}, Status: {dbItem.CompressionStatus})");
-                }
-                Console.WriteLine("========================================================\n");
-            }
-            catch (Exception ex)
+            // Trigger under disabled state to verify nothing happens
+            Console.WriteLine("\n--> Scanning drive under OFF policy...");
+            await autoEngine.RunAutomaticProtectionAsync();
+
+            // 3. Turn on Automatic Protection policy
+            Console.WriteLine("\n[AUTOMATIC PROTECTION ACTIVATED]");
+            autoEngine.Settings.Mode = AutoOptimizationMode.Automatic;
+            autoEngine.Settings.MinimumSafetyMarginBytes = 1L * 1024 * 1024 * 1024; // 1 GB safety floor for demo
+
+            // 4. Simulate Critical Storage pressure
+            Console.WriteLine("\n--> Simulating CRITICAL storage pressure...");
+            pressureSimulator.EnableSimulation(StoragePressureState.Critical);
+
+            var simulatedMetrics = await pressureMonitor.GetStorageMetricsAsync();
+            var recommendation = StoragePressurePolicy.Evaluate(simulatedMetrics, autoEngine.Settings.TargetFreeSpacePercentage);
+
+            // Display Current Dashboard View
+            Console.WriteLine("-----------------------------------------");
+            Console.WriteLine("SMARTBIN");
+            Console.WriteLine("-----------------------------------------");
+            Console.WriteLine($"Free space:         {simulatedMetrics.AvailableFreeSpace / (1024 * 1024):N0} MB");
+            Console.WriteLine($"Status:             {simulatedMetrics.PressureState} (SIMULATION)");
+            Console.WriteLine($"Safety Floor:       {autoEngine.Settings.MinimumSafetyMarginBytes / (1024 * 1024 * 1024):N0} GB");
+            Console.WriteLine($"Required Recovery:  {recommendation.RequiredSpaceToReclaimBytes / (1024 * 1024):N0} MB");
+            Console.WriteLine("-----------------------------------------");
+
+            // 5. Trigger Background Protection Loop
+            Console.WriteLine("\n--> Triggering Background Storage Protection loop...");
+            await autoEngine.RunAutomaticProtectionAsync();
+
+            // 6. Print out final Activity Log History from Metadata SQLite DB
+            var activityLogs = await activityRepository.GetLogsAsync();
+            Console.WriteLine("\n=========================================");
+            Console.WriteLine("             ACTIVITY HISTORY            ");
+            Console.WriteLine("=========================================");
+            foreach (var log in activityLogs)
             {
-                Console.WriteLine($"\n❌ Experiment Pipeline Failed: {ex.Message}");
-                Console.WriteLine("Rollback successful. Original Recycle Bin item left completely untouched.");
+                Console.WriteLine($"[{log.Timestamp:HH:mm:ss}] {log.OperationType} - Result: {log.ResultState}");
+                if (!string.IsNullOrEmpty(log.ItemName)) Console.WriteLine($"  File: {log.ItemName}");
+                if (log.ReclaimedBytes > 0) Console.WriteLine($"  Reclaimed: {log.ReclaimedBytes:N0} bytes");
+                Console.WriteLine($"  Rationale: {log.Rationale}");
+                if (!string.IsNullOrEmpty(log.FailureReason)) Console.WriteLine($"  Failure Reason: {log.FailureReason}");
+                Console.WriteLine("-----------------------------------------");
             }
+            Console.WriteLine("=========================================\n");
 
-            // Cleanup demo directory
+            // Cleanup demo folder
             try
             {
                 Directory.Delete(demoRootDir, true);
             }
             catch { }
+        }
+
+        private class FakePowerStateProvider : IPowerStateProvider
+        {
+            private readonly bool _isOnBattery;
+            public FakePowerStateProvider(bool isOnBattery) => _isOnBattery = isOnBattery;
+            public bool IsOnBatteryPower() => _isOnBattery;
         }
     }
 }
