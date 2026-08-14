@@ -9,8 +9,10 @@
 
     <AssemblyTitle>SmartBin</AssemblyTitle>
     <Product>SmartBin Adaptive Storage Protection Utility</Product>
-    <Version>1.0.0.0</Version>
+    <Version>1.0.0-rc1</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0-rc1</InformationalVersion>
     <Authors>SmartBin Engineering Team</Authors>
     <Company>SmartBin Project</Company>
     <Description>Adaptive storage protection and intelligent lossless compression utility for recoverable deleted data.</Description>
