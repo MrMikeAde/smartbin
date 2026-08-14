@@ -30,6 +30,16 @@ namespace SmartBin.Infrastructure.Services
             _failureInjector = failureInjector ?? new NoOpFailureInjector();
         }
 
+        private void EnsurePathIsSecure(string path)
+        {
+            var fullPath = Path.GetFullPath(path);
+            var rootPath = Path.GetFullPath(_storageManager.GetStoragePath());
+            if (!fullPath.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new UnauthorizedAccessException($"Access denied: Path '{path}' is outside the authorized SmartBin storage root.");
+            }
+        }
+
         public async Task RestoreAsync(Guid itemId, string? targetPath = null, CancellationToken cancellationToken = default)
         {
             var item = await _repository.GetByIdAsync(itemId, cancellationToken);
@@ -44,14 +54,56 @@ namespace SmartBin.Infrastructure.Services
                 throw new FileNotFoundException($"Stored file representation not found on disk: {storedFilePath}", storedFilePath);
             }
 
+            // Symlink/Reparse Point Guard on stored file
+            var storedAttributes = File.GetAttributes(storedFilePath);
+            if ((storedAttributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint)
+            {
+                throw new InvalidOperationException("Reparse points are not supported for safety.");
+            }
+
             // Determine final destination path
             var destination = string.IsNullOrWhiteSpace(targetPath) ? item.OriginalPath : targetPath;
             destination = Path.GetFullPath(destination);
+
+            // Path Traversal Mitigation: Ensure we are not restoring to system sensitive folders
+            var canonicalDest = Path.GetFullPath(destination);
+            var winDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            if (!string.IsNullOrWhiteSpace(winDir))
+            {
+                var systemRoot = Path.GetFullPath(winDir);
+                if (canonicalDest.StartsWith(systemRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new UnauthorizedAccessException($"Restoration to system directory '{destination}' is blocked for security.");
+                }
+            }
+
+            // Cross-platform Unix system directories protection
+            if (canonicalDest.StartsWith("/etc", StringComparison.OrdinalIgnoreCase) ||
+                canonicalDest.StartsWith("/bin", StringComparison.OrdinalIgnoreCase) ||
+                canonicalDest.StartsWith("/var", StringComparison.OrdinalIgnoreCase) ||
+                canonicalDest.StartsWith("/usr", StringComparison.OrdinalIgnoreCase) ||
+                canonicalDest.StartsWith("/sys", StringComparison.OrdinalIgnoreCase) ||
+                canonicalDest.StartsWith("/proc", StringComparison.OrdinalIgnoreCase) ||
+                canonicalDest.StartsWith("/dev", StringComparison.OrdinalIgnoreCase) ||
+                canonicalDest.StartsWith("/boot", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new UnauthorizedAccessException($"Restoration to system directory '{destination}' is blocked for security.");
+            }
 
             // Overwrite protection: Return conflict result if destination exists
             if (File.Exists(destination))
             {
                 throw new SmartBinConflictException($"Destination file already exists: {destination}", destination);
+            }
+
+            // Reparse Point / Symlink Guard on destination folder/file if it exists
+            if (File.Exists(destination) || Directory.Exists(destination))
+            {
+                var destAttributes = File.GetAttributes(destination);
+                if ((destAttributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint)
+                {
+                    throw new InvalidOperationException("Restoring to a reparse point (symlink/junction) is blocked for safety.");
+                }
             }
 
             // Establish paths inside controlled temp directory
@@ -60,6 +112,10 @@ namespace SmartBin.Infrastructure.Services
             Directory.CreateDirectory(tempDir);
 
             var tempRestorationFile = Path.Combine(tempDir, Guid.NewGuid().ToString("N") + ".restore");
+
+            // Secure path validation on temp restoration file
+            EnsurePathIsSecure(tempRestorationFile);
+
             bool verifiedAndCommitted = false;
 
             try

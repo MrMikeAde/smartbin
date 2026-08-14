@@ -44,6 +44,25 @@ namespace SmartBin.Infrastructure.Storage
         public string TempDirectory => _tempDir;
         public string MetadataDirectory => _metadataDir;
 
+        /// <summary>
+        /// Prevents path traversal by ensuring paths are canonicalized and restricted to the SmartBin root.
+        /// </summary>
+        public void EnsurePathIsSecure(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                throw new ArgumentException("Path cannot be null or empty.", nameof(path));
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            var rootPath = Path.GetFullPath(GetStoragePath());
+
+            if (!fullPath.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new UnauthorizedAccessException($"Access denied: Path traversal detected. '{path}' is outside the authorized SmartBin storage root.");
+            }
+        }
+
         public async Task<string> MoveToStorageAsync(string sourcePath, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(sourcePath))
@@ -56,9 +75,19 @@ namespace SmartBin.Infrastructure.Storage
                 throw new FileNotFoundException("Source file does not exist.", sourcePath);
             }
 
+            // Symlink/Reparse point check before moving/ingesting
+            var attributes = File.GetAttributes(sourcePath);
+            if ((attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint)
+            {
+                throw new InvalidOperationException("Reparse points are not supported for safety.");
+            }
+
             // Create a safe, unique destination file name to avoid collisions
             var fileId = Guid.NewGuid().ToString("N");
             var destinationPath = Path.Combine(_objectsDir, fileId);
+
+            // Path Traversal Security Verification
+            EnsurePathIsSecure(destinationPath);
 
             // Copy file safely with async streams (large-file handling)
             using (var sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true))
