@@ -7,15 +7,29 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
+    <AssemblyTitle>SmartBin</AssemblyTitle>
+    <Product>SmartBin Adaptive Storage Protection Utility</Product>
+    <Version>1.0.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Authors>SmartBin Engineering Team</Authors>
+    <Company>SmartBin Project</Company>
+    <Description>Adaptive storage protection and intelligent lossless compression utility for recoverable deleted data.</Description>
+
     <UseWinUI Condition="'$(OS)' == 'Windows_NT'">true</UseWinUI>
-    <PublishProfile>win10-x64</PublishProfile>
-    <Platforms>x64</Platforms>
-    <RuntimeIdentifier Condition="'$(OS)' == 'Windows_NT'">win10-x64</RuntimeIdentifier>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifier Condition="'$(OS)' == 'Windows_NT' And '$(Platform)' == 'ARM64'">win10-arm64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(OS)' == 'Windows_NT' And '$(Platform)' != 'ARM64'">win10-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <!-- Production Release Optimizations -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE;RELEASE</DefineConstants>
   </PropertyGroup>
 
   <!-- Conditional compile constants for Windows -->
   <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
-    <DefineConstants>WINDOWS</DefineConstants>
+    <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
   </PropertyGroup>
 
   <!-- Conditional compilation items for Windows -->

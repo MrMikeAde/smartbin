@@ -5,7 +5,9 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="SmartBin Dashboard">
+    Title="SmartBin - Production Dashboard"
+    Width="1200"
+    Height="800">
 
     <Grid Padding="24" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.RowDefinitions>
@@ -14,120 +16,201 @@
         </Grid.RowDefinitions>
 
         <!-- Header and Toolbar -->
-        <Grid Grid.Row="0" Margin="0,0,0,24">
+        <Grid Grid.Row="0" Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0">
-                <TextBlock Text="SmartBin Dashboard" Style="{ThemeResource HeaderTextBlockStyle}" FontWeight="SemiBold"/>
-                <TextBlock Text="Experimental Adaptive Recycle Bin PoC with Background Storage Protection" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
+            <StackPanel Grid.Column="0" Spacing="4">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="SmartBin" Style="{ThemeResource HeaderTextBlockStyle}" FontWeight="Bold" FontSize="28"/>
+                    <Border Background="{ThemeResource SystemAccentColor}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                        <TextBlock Text="v1.0.0" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                    </Border>
+                </StackPanel>
+                <TextBlock Text="Adaptive Storage Protection &amp; Intelligent Lossless Compression Utility" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                <Button x:Name="ImportBtn" Content="Import File..." Click="OnImportFileClicked" Style="{StaticResource AccentButtonStyle}"/>
-                <Button x:Name="AnalyzeStorageBtn" Content="Analyze Storage" Click="OnAnalyzeStorageClicked"/>
-                <Button x:Name="OptimizeNowBtn" Content="Optimize Now" Click="OnOptimizeNowClicked"/>
-                <Button x:Name="RestoreBtn" Content="Restore Selected" Click="OnRestoreSelectedClicked"/>
+                <Button x:Name="ImportBtn" Content="Import File..." Click="OnImportFileClicked" Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="Import File Button" ToolTipService.ToolTip="Import a file directly into SmartBin storage"/>
+                <Button x:Name="AnalyzeStorageBtn" Content="Analyze Storage" Click="OnAnalyzeStorageClicked" AutomationProperties.Name="Analyze Storage Button" ToolTipService.ToolTip="Run current storage capacity and policy rules analysis"/>
+                <Button x:Name="OptimizeNowBtn" Content="Optimize Now" Click="OnOptimizeNowClicked" AutomationProperties.Name="Optimize Now Button" ToolTipService.ToolTip="Manually execute sequence optimization of eligible candidates"/>
+                <Button x:Name="RestoreBtn" Content="Restore Selected" Click="OnRestoreSelectedClicked" AutomationProperties.Name="Restore Selected Button" ToolTipService.ToolTip="Restore selected compressed item to folder with SHA-256 verification"/>
             </StackPanel>
         </Grid>
 
         <!-- Main Dashboard View -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="350"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+                <ColumnDefinition Width="380"/>
+                <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Left Panel: Summary & Metrics -->
-            <StackPanel Grid.Column="0" Spacing="16" Margin="0,0,16,0">
+            <!-- Left Panel: Summary, Storage Pressure, & Terminal -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,16,0">
+                <StackPanel Spacing="16">
 
-                <!-- Storage Pressure Simulator Panel -->
-                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="Storage Pressure Simulator" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium"/>
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <ComboBox x:Name="SimStateCombo" Grid.Column="0" HorizontalAlignment="Stretch" SelectedIndex="0">
-                                <ComboBoxItem Content="Normal"/>
-                                <ComboBoxItem Content="Low"/>
-                                <ComboBoxItem Content="Critical"/>
-                            </ComboBox>
-                            <ToggleSwitch x:Name="SimToggle" Grid.Column="1" Header="Simulation" OnContent="On" OffContent="Off" Toggled="OnSimulationToggled"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
+                    <!-- Storage Pressure Simulator Panel -->
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Storage Pressure Simulator" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Simulate low disk space conditions to test policies safely without shrinking your real drive." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="Gray" TextWrapping="Wrap"/>
 
-                <!-- Storage Visualization -->
-                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="Storage Visualization" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium"/>
-                        <ProgressBar x:Name="StorageProgress" Value="0" Minimum="0" Maximum="100" Height="12" CornerRadius="4"/>
-                        <TextBlock x:Name="StorageStatusText" Text="Loading storage status..." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="Gray"/>
-                    </StackPanel>
-                </Border>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="SimStateCombo" Grid.Column="0" HorizontalAlignment="Stretch" SelectedIndex="0" AutomationProperties.Name="Simulation Pressure State ComboBox">
+                                    <ComboBoxItem Content="Normal (Default)"/>
+                                    <ComboBoxItem Content="Low Pressure (14% Free)"/>
+                                    <ComboBoxItem Content="Critical Pressure (4% Free)"/>
+                                </ComboBox>
+                                <ToggleSwitch x:Name="SimToggle" Grid.Column="1" Header="Simulation" OnContent="On" OffContent="Off" Toggled="OnSimulationToggled" AutomationProperties.Name="Simulation Mode Toggle"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
-                <!-- Detailed Stats Card -->
-                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="System Metrics" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium"/>
-                        <MenuFlyoutSeparator Margin="0,4"/>
+                    <!-- Storage Visualization and Metrics -->
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Drive Space Utilization" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="SemiBold"/>
 
-                        <Grid>
-                            <TextBlock Text="Original size:" Style="{ThemeResource BodyTextBlockStyle}"/>
-                            <TextBlock x:Name="OriginalSizeText" Text="0 bytes" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="Bold"/>
-                        </Grid>
-                        <Grid>
-                            <TextBlock Text="Stored size:" Style="{ThemeResource BodyTextBlockStyle}"/>
-                            <TextBlock x:Name="StoredSizeText" Text="0 bytes" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="Bold"/>
-                        </Grid>
-                        <Grid>
-                            <TextBlock Text="Actual space reclaimed:" Style="{ThemeResource BodyTextBlockStyle}"/>
-                            <TextBlock x:Name="SpaceSavedText" Text="0 bytes" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Green" FontWeight="Bold"/>
-                        </Grid>
-                        <Grid>
-                            <TextBlock Text="Potential recovery:" Style="{ThemeResource BodyTextBlockStyle}"/>
-                            <TextBlock x:Name="PotentialSavedText" Text="0 bytes" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}" Foreground="Green"/>
-                        </Grid>
+                            <!-- Custom Textual / Bar Visual Representation of Pressure -->
+                            <ProgressBar x:Name="StorageProgress" Value="0" Minimum="0" Maximum="100" Height="14" CornerRadius="4"/>
 
-                        <MenuFlyoutSeparator Margin="0,4"/>
+                            <TextBlock x:Name="StorageStatusText" Text="Loading storage status..." Style="{ThemeResource BodyTextBlockStyle}" FontWeight="Bold" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="StoragePressureLabel" Text="System State: NORMAL" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="Gray" HorizontalAlignment="Center"/>
 
-                        <Grid>
-                            <TextBlock Text="Files protected:" Style="{ThemeResource BodyTextBlockStyle}"/>
-                            <TextBlock x:Name="FilesProtectedText" Text="0" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        </Grid>
-                        <Grid>
-                            <TextBlock Text="Compressed:" Style="{ThemeResource BodyTextBlockStyle}"/>
-                            <TextBlock x:Name="CompressedText" Text="0" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        </Grid>
-                        <Grid>
-                            <TextBlock Text="Already optimized:" Style="{ThemeResource BodyTextBlockStyle}"/>
-                            <TextBlock x:Name="OptimizedText" Text="0" HorizontalAlignment="Right" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
+                            <MenuFlyoutSeparator Margin="0,4"/>
 
-                <!-- Operation Terminal -->
-                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Operation Terminal" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="Bold" Foreground="Gray"/>
-                        <ScrollViewer Height="100" VerticalScrollBarVisibility="Auto">
-                            <TextBlock x:Name="TerminalText" Text="Terminal Ready..." TextWrapping="Wrap" FontFamily="Consolas" FontSize="11" Foreground="DarkGreen"/>
-                        </ScrollViewer>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
+                            <Grid>
+                                <TextBlock Text="Total Capacity:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="TotalCapacityText" Text="-" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold"/>
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="Used Storage:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="UsedStorageText" Text="-" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold"/>
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="Available Space:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="AvailableStorageText" Text="-" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold"/>
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="Active Safety Floor:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="SafetyFloorText" Text="5.0 GB" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="DarkRed"/>
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="Optimization Target:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="TargetLevelText" Text="20%" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
-            <!-- Right Panel: Items pivot tabs separating SmartBin, Windows Recycle Bin, Controlled Experiment, Settings, and Activity History -->
+                    <!-- SmartBin Engine Stats Card -->
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="SmartBin Engine Metrics" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="SemiBold"/>
+                            <MenuFlyoutSeparator Margin="0,4"/>
+
+                            <Grid>
+                                <TextBlock Text="Background Monitoring:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="MonitorStatusText" Text="ACTIVE" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="Green" FontWeight="Bold"/>
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="Auto Protection Mode:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="AutoProtectStatusText" Text="OFF" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="DarkOrange" FontWeight="Bold"/>
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="Current Operation:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="CurrentOpText" Text="Idle" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis" MaxWidth="180"/>
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="Last Optimization Run:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="LastOptText" Text="None" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                            </Grid>
+
+                            <MenuFlyoutSeparator Margin="0,4"/>
+
+                            <Grid>
+                                <TextBlock Text="Files Under Protection:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="FilesProtectedText" Text="0" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold"/>
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="Losslessly Compressed:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="CompressedText" Text="0" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="SemiBold"/>
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="Incompressible Skipped:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="OptimizedText" Text="0" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                            </Grid>
+
+                            <MenuFlyoutSeparator Margin="0,4"/>
+
+                            <Grid>
+                                <TextBlock Text="Original File Size Total:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="OriginalSizeText" Text="0 bytes" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="SmartBin Stored Size:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="StoredSizeText" Text="0 bytes" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="Verified Reclaimed Space:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="SpaceSavedText" Text="0 bytes" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="Green" FontWeight="Bold"/>
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="Potential Unsaved Space:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                <TextBlock x:Name="PotentialSavedText" Text="0 bytes" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="DarkSlateGray"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Operation Terminal -->
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="System Operations Terminal" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="Bold" Foreground="Gray"/>
+                            <ScrollViewer Height="120" VerticalScrollBarVisibility="Auto">
+                                <TextBlock x:Name="TerminalText" Text="Terminal Ready..." TextWrapping="Wrap" FontFamily="Consolas" FontSize="11" Foreground="DarkGreen"/>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Right Panel: Pivot Views supporting First-Run, SmartBin, Recycle Bin, Experiment, Settings, History, and About -->
             <Pivot Grid.Column="1" Margin="8,0,0,0">
 
-                <!-- Tab 1: SmartBin Controlled Items -->
+                <!-- TAB 1: First-Run Experience / Onboarding (Required) -->
+                <PivotItem Header="Welcome Guide">
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="20" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="16">
+                                <TextBlock Text="Welcome to SmartBin!" Style="{ThemeResource TitleTextBlockStyle}" FontWeight="Bold"/>
+                                <TextBlock Text="Adaptive, reliable, and user-controlled storage protection for Windows Recycle Bin." Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
+                                <MenuFlyoutSeparator/>
+
+                                <TextBlock Text="What is SmartBin?" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="SemiBold"/>
+                                <TextBlock Text="SmartBin is an intelligent utility designed to reclaim disk storage when your drive is low. Rather than permanently deleting files from the Recycle Bin, SmartBin intercept-compresses them losslessly, keeping them completely safe while freeing up system space." Style="{ThemeResource BodyTextBlockStyle}" TextWrapping="Wrap"/>
+
+                                <TextBlock Text="How does it work?" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="SemiBold"/>
+                                <TextBlock Text="1. SmartBin runs a non-elevated background thread to monitor storage thresholds.&#x0a;2. When space drops below the threshold, candidates are analyzed based on compression suitability, age, and size.&#x0a;3. SmartBin performs multi-phase verification (acquiring, hashing, compressing, decompressing, and verifying) before any filesystem changes occur.&#x0a;4. Files can be restored perfectly, byte-for-byte, verifying original SHA-256 integrity upon decompression." Style="{ThemeResource BodyTextBlockStyle}" TextWrapping="Wrap"/>
+
+                                <TextBlock Text="Is Automatic Protection Enabled?" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="SemiBold"/>
+                                <TextBlock Text="No. Out of absolute caution and safety, Automatic Protection remains OFF by default. It never performs batch, background, or multi-item operations unless you explicitly configure and enable it in the Settings page." Style="{ThemeResource BodyTextBlockStyle}" TextWrapping="Wrap" Foreground="DarkOrange" FontWeight="SemiBold"/>
+
+                                <TextBlock Text="What happens to my files?" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Your files are extremely secure. We employ standard lossless Zip streaming compression. We guarantee byte-for-byte fidelity—restored files will have the exact same SHA-256 hash as the original file. If verification checks fail, SmartBin immediately rolls back, leaving your files completely untouched." Style="{ThemeResource BodyTextBlockStyle}" TextWrapping="Wrap"/>
+
+                                <TextBlock Text="Where does SmartBin store its data?" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="SemiBold"/>
+                                <TextBlock Text="All compressed representations and transaction databases are stored locally inside standard user app storage folders (%AppData%\SmartBinStorage). SmartBin does not use cloud services, accounts, or telemetry, and never sends your data or metadata over the internet." Style="{ThemeResource BodyTextBlockStyle}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </PivotItem>
+
+                <!-- TAB 2: SmartBin Storage -->
                 <PivotItem Header="SmartBin Storage">
                     <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                         <Grid>
@@ -138,18 +221,19 @@
 
                             <TextBlock Grid.Row="0" Text="SmartBin Recoverable Items" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium" Margin="0,0,0,12"/>
 
-                            <ListView x:Name="ItemsListView" Grid.Row="1" SelectionMode="Single" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SelectionChanged="OnItemsSelectionChanged">
+                            <!-- Empty State for SmartBin Items -->
+                            <TextBlock x:Name="ItemsListViewEmptyState" Grid.Row="1" Text="No files currently protected under SmartBin local storage. Import some files or execute a controlled experiment from the Recycle Bin." Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="400"/>
+
+                            <ListView x:Name="ItemsListView" Grid.Row="1" SelectionMode="Single" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SelectionChanged="OnItemsSelectionChanged" AutomationProperties.Name="SmartBin Protected Items List">
                                 <ListView.HeaderTemplate>
                                     <DataTemplate>
                                         <Grid Padding="12,0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
                                             <Grid.ColumnDefinitions>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="200"/>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="120"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="200"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="120"/>
+                                                <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="Filename" FontWeight="Bold"/>
                                             <TextBlock Grid.Column="1" Text="Orig Size" FontWeight="Bold"/>
@@ -182,7 +266,7 @@
                     </Border>
                 </PivotItem>
 
-                <!-- Tab 2: Windows Recycle Bin Integration -->
+                <!-- TAB 3: Windows Recycle Bin Integration -->
                 <PivotItem Header="Windows Recycle Bin">
                     <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                         <Grid>
@@ -197,18 +281,21 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                    <TextBlock Text="Windows Recycle Bin Items" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium"/>
+                                    <TextBlock Text="Windows Recycle Bin Candidates" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium"/>
                                     <Border Background="Orange" CornerRadius="4" Padding="6,2">
                                         <TextBlock Text="READ-ONLY INTEGRATION" FontSize="10" FontWeight="Bold" Foreground="White"/>
                                     </Border>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
                                     <TextBlock x:Name="WinStatsText" Text="Loading..." VerticalAlignment="Center" Style="{ThemeResource CaptionTextBlockStyle}"/>
-                                    <Button x:Name="RefreshWinBtn" Content="Refresh Bin" Click="OnRefreshWinClicked"/>
+                                    <Button x:Name="RefreshWinBtn" Content="Refresh Bin" Click="OnRefreshWinClicked" AutomationProperties.Name="Refresh Windows Recycle Bin Button"/>
                                 </StackPanel>
                             </Grid>
 
-                            <ListView x:Name="WinItemsListView" Grid.Row="1" SelectionMode="Single" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SelectionChanged="OnWinItemsSelectionChanged">
+                            <!-- Empty State for Recycle Bin -->
+                            <TextBlock x:Name="WinItemsListViewEmptyState" Grid.Row="1" Text="Your Windows Recycle Bin is currently empty. Generated test files will appear here." Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="400" Visibility="Collapsed"/>
+
+                            <ListView x:Name="WinItemsListView" Grid.Row="1" SelectionMode="Single" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SelectionChanged="OnWinItemsSelectionChanged" AutomationProperties.Name="Windows Recycle Bin Items List">
                                 <ListView.HeaderTemplate>
                                     <DataTemplate>
                                         <Grid Padding="12,0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
@@ -220,7 +307,7 @@
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="Filename" FontWeight="Bold"/>
-                                            <TextBlock Grid.Column="1" Text="Size" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="1" Text="Size (Bytes)" FontWeight="Bold"/>
                                             <TextBlock Grid.Column="2" Text="Volume" FontWeight="Bold"/>
                                             <TextBlock Grid.Column="3" Text="Date Deleted" FontWeight="Bold"/>
                                             <TextBlock Grid.Column="4" Text="Original Location" FontWeight="Bold"/>
@@ -250,7 +337,7 @@
                     </Border>
                 </PivotItem>
 
-                <!-- Tab 3: Controlled Experiment Panel -->
+                <!-- TAB 4: Controlled Experiment Panel -->
                 <PivotItem Header="Controlled Experiment">
                     <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -260,13 +347,36 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Controlled Real-World Optimization Proof" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Bold" Grid.Column="0"/>
+                                    <TextBlock Text="Controlled Single-Item Optimization Proof" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Bold" Grid.Column="0"/>
                                     <Border Background="Red" CornerRadius="4" Padding="6,2" Grid.Column="1">
-                                        <TextBlock Text="CONTROLLED EXPERIMENT ONLY" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                        <TextBlock Text="EXPERIMENTAL VERIFICATION LAYER" FontSize="10" FontWeight="Bold" Foreground="White"/>
                                     </Border>
                                 </Grid>
 
-                                <TextBlock Text="SmartBin can safely run a multi-phase verification test on exactly ONE selected Windows Recycle Bin item. No background or batch optimization occurs." Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
+                                <TextBlock Text="SmartBin can safely execute a multi-phase verification test on exactly ONE selected candidate from the Recycle Bin. Original items are left untouched until you explicitly commit." Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray" TextWrapping="Wrap"/>
+                                <MenuFlyoutSeparator/>
+
+                                <!-- Generate Safe Demonstration Test File (New Phase 9) -->
+                                <Border BorderBrush="Gray" BorderThickness="1" BorderBrush-Opacity="0.4" CornerRadius="6" Padding="12" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Demonstration Helper: Generate Safe Dummy Test Files" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Creating programmatic test data protects your actual personal files. This button creates a file and immediately puts it into your simulated Recycle Bin for demonstration." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="Gray" TextWrapping="Wrap"/>
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox x:Name="DemoFileTypeCombo" Grid.Column="0" SelectedIndex="0" HorizontalAlignment="Stretch" AutomationProperties.Name="Demo File Type Select ComboBox">
+                                                <ComboBoxItem Content="10 MB highly compressible text file"/>
+                                                <ComboBoxItem Content="100 MB large compressible file"/>
+                                                <ComboBoxItem Content="500 MB mixed compressibility data"/>
+                                                <ComboBoxItem Content="1 GB random incompressible file"/>
+                                            </ComboBox>
+                                            <Button x:Name="GenerateDemoBtn" Grid.Column="1" Content="Generate &amp; Delete to Bin" Click="OnGenerateDemoClicked" Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="Generate Demo File Button"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
                                 <MenuFlyoutSeparator/>
 
                                 <Grid ColumnSpacing="16">
@@ -277,38 +387,38 @@
 
                                     <!-- Selected Item Details -->
                                     <StackPanel Grid.Column="0" Spacing="8">
-                                        <TextBlock Text="Selected Target File" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
-                                        <TextBlock x:Name="ExpFileNameText" Text="[No Windows Recycle Bin item selected]" Style="{ThemeResource TitleTextBlockStyle}"/>
+                                        <TextBlock Text="Active Experiment Candidate" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
+                                        <TextBlock x:Name="ExpFileNameText" Text="[No Recycle Bin candidate selected]" Style="{ThemeResource TitleTextBlockStyle}" TextWrapping="Wrap" FontSize="18"/>
                                         <TextBlock x:Name="ExpOrigPathText" Text="Original Path: -" Style="{ThemeResource CaptionTextBlockStyle}" TextWrapping="Wrap" Foreground="Gray"/>
                                         <TextBlock x:Name="ExpSizeText" Text="Original Size: -" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="Gray"/>
-                                        <Button x:Name="StartExpBtn" Content="Begin Controlled Test" Click="OnBeginControlledTestClicked" Style="{StaticResource AccentButtonStyle}" Margin="0,12,0,0" HorizontalAlignment="Stretch"/>
+                                        <Button x:Name="StartExpBtn" Content="Begin Controlled Test" Click="OnBeginControlledTestClicked" Style="{StaticResource AccentButtonStyle}" Margin="0,12,0,0" HorizontalAlignment="Stretch" AutomationProperties.Name="Begin Controlled Test Button"/>
                                     </StackPanel>
 
                                     <!-- Pipeline Safety Indicators Checklist -->
                                     <StackPanel Grid.Column="1" Spacing="8">
-                                        <TextBlock Text="Pipeline Safety Verification Checklist" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Phase 5 Safety Pipeline Checklist" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
                                         <Grid>
-                                            <TextBlock Text="• Item Identified" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                            <TextBlock Text="• Candidate Item Identified" Style="{ThemeResource CaptionTextBlockStyle}"/>
                                             <TextBlock x:Name="Check1" Text="PENDING" HorizontalAlignment="Right" Foreground="Gray" FontWeight="Bold"/>
                                         </Grid>
                                         <Grid>
-                                            <TextBlock Text="• Content Acquired Safely" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                            <TextBlock Text="• Safe Extraction/Acquisition" Style="{ThemeResource CaptionTextBlockStyle}"/>
                                             <TextBlock x:Name="Check2" Text="PENDING" HorizontalAlignment="Right" Foreground="Gray" FontWeight="Bold"/>
                                         </Grid>
                                         <Grid>
-                                            <TextBlock Text="• SHA-256 Calculated" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                            <TextBlock Text="• Integrity SHA-256 Calculated" Style="{ThemeResource CaptionTextBlockStyle}"/>
                                             <TextBlock x:Name="Check3" Text="PENDING" HorizontalAlignment="Right" Foreground="Gray" FontWeight="Bold"/>
                                         </Grid>
                                         <Grid>
-                                            <TextBlock Text="• Compression Completed" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                            <TextBlock Text="• Lossless Compression Done" Style="{ThemeResource CaptionTextBlockStyle}"/>
                                             <TextBlock x:Name="Check4" Text="PENDING" HorizontalAlignment="Right" Foreground="Gray" FontWeight="Bold"/>
                                         </Grid>
                                         <Grid>
-                                            <TextBlock Text="• Compressed Verified" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                            <TextBlock Text="• Compressed Integrity Verified" Style="{ThemeResource CaptionTextBlockStyle}"/>
                                             <TextBlock x:Name="Check5" Text="PENDING" HorizontalAlignment="Right" Foreground="Gray" FontWeight="Bold"/>
                                         </Grid>
                                         <Grid>
-                                            <TextBlock Text="• Restoration Dry-Run Verified" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                            <TextBlock Text="• Restoration Integrity Verified" Style="{ThemeResource CaptionTextBlockStyle}"/>
                                             <TextBlock x:Name="Check6" Text="PENDING" HorizontalAlignment="Right" Foreground="Gray" FontWeight="Bold"/>
                                         </Grid>
                                     </StackPanel>
@@ -320,17 +430,15 @@
                                 <StackPanel Spacing="12">
                                     <TextBlock Text="Commit Decision Boundary" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
                                     <TextBlock x:Name="CommitStatusText" Text="Status: WAITING FOR PIPELINE CHECKS" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="Bold" Foreground="DarkBlue"/>
-                                    <CheckBox x:Name="MutationCheck" Content="Execute Windows Mutation"/>
-                                    <TextBlock Text="Warning: Windows mutation will permanently remove the original item. If unchecked, the verified compressed representation is preserved inside SmartBin, and the Recycle Bin item is untouched." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="DarkRed" TextWrapping="Wrap"/>
+                                    <CheckBox x:Name="MutationCheck" Content="Execute Windows Mutation" AutomationProperties.Name="Execute Windows Mutation Checkbox"/>
+                                    <TextBlock Text="Warning: Enabling mutation will permanently remove the original virtual item from the Recycle Bin upon commit. If unchecked, the verified representation is stored, leaving the Recycle Bin entry untouched." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="DarkRed" TextWrapping="Wrap"/>
                                     <Grid ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
-                                            <Grid.ColumnDefinitions>
-                                                <Grid.ColumnDefinition Width="*"/>
-                                                <Grid.ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Button x:Name="CommitExpBtn" Grid.Column="0" Content="Commit Controlled Experiment" Click="OnCommitExperimentClicked" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" HorizontalAlignment="Stretch"/>
-                                        <Button x:Name="KeepCopyBtn" Grid.Column="1" Content="Keep SmartBin Copy (No Mutation)" Click="OnKeepCopyClicked" IsEnabled="False" HorizontalAlignment="Stretch"/>
+                                        <Button x:Name="CommitExpBtn" Grid.Column="0" Content="Commit Controlled Experiment" Click="OnCommitExperimentClicked" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" HorizontalAlignment="Stretch" AutomationProperties.Name="Commit Controlled Experiment Button"/>
+                                        <Button x:Name="KeepCopyBtn" Grid.Column="1" Content="Keep SmartBin Copy (No Mutation)" Click="OnKeepCopyClicked" IsEnabled="False" HorizontalAlignment="Stretch" AutomationProperties.Name="Keep Copy Without Mutation Button"/>
                                     </Grid>
                                 </StackPanel>
                             </StackPanel>
@@ -338,42 +446,51 @@
                     </Border>
                 </PivotItem>
 
-                <!-- NEW: Tab 4: Settings Page (Phase 6) -->
+                <!-- TAB 5: Policy Settings & Inputs Validation (Required) -->
                 <PivotItem Header="Settings">
                     <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Spacing="16">
-                                <TextBlock Text="Storage Protection &amp; Policy Settings" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Bold"/>
+                                <TextBlock Text="Adaptive Policy &amp; Storage Settings" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Bold"/>
                                 <MenuFlyoutSeparator/>
+
+                                <!-- Validation Warning Block / InfoBar replacement -->
+                                <Border x:Name="SettingsValidationBorder" Background="LightYellow" BorderBrush="Gold" BorderThickness="1" CornerRadius="6" Padding="12" Visibility="Collapsed">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="⚠️" FontSize="16" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="SettingsValidationErrorText" Text="Invalid values found!" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="DarkGoldenrod" TextWrapping="Wrap" MaxWidth="450"/>
+                                    </StackPanel>
+                                </Border>
 
                                 <!-- Mode selection -->
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="Automatic Optimization Mode" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
-                                    <RadioButton x:Name="ModeOffRadio" Content="OFF (No automatic optimizations occur)" IsChecked="True" Checked="OnSettingsChanged"/>
-                                    <RadioButton x:Name="ModeNotifyRadio" Content="NOTIFY ME (Scan and warn when space is low)" Checked="OnSettingsChanged"/>
-                                    <RadioButton x:Name="ModeAutoRadio" Content="AUTOMATIC (Compress files sequentially to free space)" Checked="OnSettingsChanged"/>
+                                    <RadioButton x:Name="ModeOffRadio" Content="OFF (Zero automatic background actions occur)" IsChecked="True" Checked="OnSettingsChanged" AutomationProperties.Name="Optimization Mode Off Radio Button"/>
+                                    <RadioButton x:Name="ModeNotifyRadio" Content="NOTIFY ME (Scan storage and alert if pressure is detected)" Checked="OnSettingsChanged" AutomationProperties.Name="Optimization Mode Notify Radio Button"/>
+                                    <RadioButton x:Name="ModeAutoRadio" Content="AUTOMATIC (Safely compress candidates sequentially to release space)" Checked="OnSettingsChanged" AutomationProperties.Name="Optimization Mode Automatic Radio Button"/>
                                 </StackPanel>
 
                                 <MenuFlyoutSeparator/>
 
                                 <!-- Thresholds -->
                                 <StackPanel Spacing="12">
-                                    <TextBlock Text="Storage Thresholds" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Adaptive Trigger Thresholds" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
+
                                     <Grid>
-                                        <TextBlock Text="Low Storage Threshold Percentage (e.g. 15%)" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="LowThresholdInput" Text="15" Width="80" HorizontalAlignment="Right" TextChanged="OnSettingsChanged"/>
+                                        <TextBlock Text="Low Storage Threshold Percentage (%)" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="LowThresholdInput" Text="15" Width="100" HorizontalAlignment="Right" TextChanged="OnSettingsChanged" AutomationProperties.Name="Low Storage Threshold Percentage Input"/>
                                     </Grid>
                                     <Grid>
-                                        <TextBlock Text="Critical Storage Threshold Percentage (e.g. 5%)" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="CritThresholdInput" Text="5" Width="80" HorizontalAlignment="Right" TextChanged="OnSettingsChanged"/>
+                                        <TextBlock Text="Critical Storage Threshold Percentage (%)" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="CritThresholdInput" Text="5" Width="100" HorizontalAlignment="Right" TextChanged="OnSettingsChanged" AutomationProperties.Name="Critical Storage Threshold Percentage Input"/>
                                     </Grid>
                                     <Grid>
-                                        <TextBlock Text="Target Free-Space Percentage (e.g. 20%)" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="TargetPercentInput" Text="20" Width="80" HorizontalAlignment="Right" TextChanged="OnSettingsChanged"/>
+                                        <TextBlock Text="Target Free-Space Percentage (%)" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="TargetPercentInput" Text="20" Width="100" HorizontalAlignment="Right" TextChanged="OnSettingsChanged" AutomationProperties.Name="Target Free Space Percentage Input"/>
                                     </Grid>
                                     <Grid>
-                                        <TextBlock Text="Hard Safety Floor / Safety Margin (GB, e.g. 5)" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="SafetyFloorInput" Text="5" Width="80" HorizontalAlignment="Right" TextChanged="OnSettingsChanged"/>
+                                        <TextBlock Text="Hard Safety Floor Margin (GB)" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="SafetyFloorInput" Text="5" Width="100" HorizontalAlignment="Right" TextChanged="OnSettingsChanged" AutomationProperties.Name="Hard Safety Floor Margin Input"/>
                                     </Grid>
                                 </StackPanel>
 
@@ -381,11 +498,11 @@
 
                                 <!-- Resource controls -->
                                 <StackPanel Spacing="8">
-                                    <TextBlock Text="Resource Awareness &amp; Limits" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
-                                    <ToggleSwitch x:Name="BatteryPauseToggle" Header="Pause on Battery Power" IsOn="True" Toggled="OnSettingsChanged"/>
+                                    <TextBlock Text="Power Status &amp; Resource Constraints" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="SemiBold"/>
+                                    <ToggleSwitch x:Name="BatteryPauseToggle" Header="Pause Automatic Protection on Battery Power" IsOn="True" Toggled="OnSettingsChanged" AutomationProperties.Name="Battery Pause Switch"/>
                                     <Grid>
                                         <TextBlock Text="Maximum candidates optimized per session" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="MaxItemsInput" Text="5" Width="80" HorizontalAlignment="Right" TextChanged="OnSettingsChanged"/>
+                                        <TextBox x:Name="MaxItemsInput" Text="5" Width="100" HorizontalAlignment="Right" TextChanged="OnSettingsChanged" AutomationProperties.Name="Maximum Items per Session Input"/>
                                     </Grid>
                                 </StackPanel>
                             </StackPanel>
@@ -393,7 +510,7 @@
                     </Border>
                 </PivotItem>
 
-                <!-- NEW: Tab 5: Activity Log Page (Phase 6) -->
+                <!-- TAB 6: Activity History -->
                 <PivotItem Header="Activity History">
                     <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                         <Grid>
@@ -404,7 +521,10 @@
 
                             <TextBlock Grid.Row="0" Text="Activity Log and Scans History" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="Medium" Margin="0,0,0,12"/>
 
-                            <ListView x:Name="ActivityListView" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                            <!-- Empty State for History -->
+                            <TextBlock x:Name="ActivityListViewEmptyState" Grid.Row="1" Text="No recorded optimization actions or storage scans in history database." Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="400"/>
+
+                            <ListView x:Name="ActivityListView" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AutomationProperties.Name="Activity Logs List">
                                 <ListView.HeaderTemplate>
                                     <DataTemplate>
                                         <Grid Padding="12,0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
@@ -419,7 +539,7 @@
                                             <TextBlock Grid.Column="1" Text="Operation" FontWeight="Bold"/>
                                             <TextBlock Grid.Column="2" Text="State" FontWeight="Bold"/>
                                             <TextBlock Grid.Column="3" Text="Reclaimed" FontWeight="Bold"/>
-                                            <TextBlock Grid.Column="4" Text="Rationale" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="4" Text="Rationale/Details" FontWeight="Bold"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ListView.HeaderTemplate>
@@ -427,13 +547,11 @@
                                     <DataTemplate>
                                         <Grid Padding="12,6">
                                             <Grid.ColumnDefinitions>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="150"/>
-                                                    <ColumnDefinition Width="150"/>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="{Binding Timestamp}"/>
                                             <TextBlock Grid.Column="1" Text="{Binding OperationType}" FontWeight="SemiBold"/>
@@ -447,6 +565,47 @@
                         </Grid>
                     </Border>
                 </PivotItem>
+
+                <!-- TAB 7: About / Product Identification (Required) -->
+                <PivotItem Header="About">
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="20" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="16">
+                                <TextBlock Text="SmartBin" Style="{ThemeResource HeaderTextBlockStyle}" FontWeight="Bold"/>
+                                <TextBlock Text="Adaptive storage protection for recoverable deleted data." Style="{ThemeResource BodyTextBlockStyle}" Foreground="Gray"/>
+
+                                <MenuFlyoutSeparator/>
+
+                                <Grid>
+                                    <TextBlock Text="Product Version:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                    <TextBlock Text="v1.0.0 (Phase 9 Release)" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" FontWeight="Bold"/>
+                                </Grid>
+                                <Grid>
+                                    <TextBlock Text="Target Framework:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                    <TextBlock Text=".NET 10.0 / WinUI 3" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                </Grid>
+                                <Grid>
+                                    <TextBlock Text="Open Source Repository:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                    <TextBlock Text="https://github.com/MrMikeAde/smartbin" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="Blue"/>
+                                </Grid>
+                                <Grid>
+                                    <TextBlock Text="License:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                    <TextBlock Text="MIT License" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                </Grid>
+                                <Grid>
+                                    <TextBlock Text="Data Privacy Boundary:" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                    <TextBlock Text="100% Local (Zero Network/Telemetry/Analytics)" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="Green" FontWeight="Bold"/>
+                                </Grid>
+
+                                <MenuFlyoutSeparator/>
+
+                                <TextBlock Text="Disclaimer" Style="{ThemeResource SubheaderTextBlockStyle}" FontWeight="SemiBold"/>
+                                <TextBlock Text="SmartBin is an independent experimental project and is not affiliated with Microsoft or Apple. It does not replace the default Windows Recycle Bin, but serves as an adaptive storage assistant." Style="{ThemeResource CaptionTextBlockStyle}" TextWrapping="Wrap" Foreground="Gray"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </PivotItem>
+
             </Pivot>
         </Grid>
     </Grid>
