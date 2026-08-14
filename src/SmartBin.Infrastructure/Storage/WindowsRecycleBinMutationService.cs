@@ -25,9 +25,18 @@ namespace SmartBin.Infrastructure.Storage
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 // Headless/CI mock: find the simulated item and write exactly its size in bytes
-                var simProvider = new SimulatedRecycleBinProvider();
-                var simItem = await simProvider.GetItemAsync(itemId, cancellationToken);
-                long targetSize = simItem?.Size ?? 50036;
+                long targetSize = 50036;
+                var parts = itemId.Split('_');
+                if (parts.Length >= 3 && long.TryParse(parts[2], out var parsedSize))
+                {
+                    targetSize = parsedSize;
+                }
+                else
+                {
+                    var simProvider = new SimulatedRecycleBinProvider();
+                    var simItem = await simProvider.GetItemAsync(itemId, cancellationToken);
+                    targetSize = simItem?.Size ?? 50036;
+                }
 
                 // Write simulated data of exact expected size
                 using (var fs = new FileStream(targetTempPath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true))
@@ -245,9 +254,15 @@ namespace SmartBin.Infrastructure.Storage
 
         private static int ParseIdIndex(string itemId)
         {
-            // ID pattern: "win_INDEX"
+            // ID pattern: "win_INDEX" or "win_INDEX_SIZE"
             if (string.IsNullOrWhiteSpace(itemId) || !itemId.StartsWith("win_")) return -1;
-            if (int.TryParse(itemId.Substring(4), out var index))
+            var part = itemId.Substring(4);
+            var idxOfUnderscore = part.IndexOf('_');
+            if (idxOfUnderscore >= 0)
+            {
+                part = part.Substring(0, idxOfUnderscore);
+            }
+            if (int.TryParse(part, out var index))
             {
                 return index;
             }

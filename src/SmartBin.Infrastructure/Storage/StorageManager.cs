@@ -9,13 +9,15 @@ namespace SmartBin.Infrastructure.Storage
     public class StorageManager : IStorageManager
     {
         private readonly IStoragePathProvider _pathProvider;
+        private readonly IStoragePressureMonitor? _pressureMonitor;
         private readonly string _objectsDir;
         private readonly string _tempDir;
         private readonly string _metadataDir;
 
-        public StorageManager(IStoragePathProvider pathProvider)
+        public StorageManager(IStoragePathProvider pathProvider, IStoragePressureMonitor? pressureMonitor = null)
         {
             _pathProvider = pathProvider ?? throw new ArgumentNullException(nameof(pathProvider));
+            _pressureMonitor = pressureMonitor;
 
             var root = _pathProvider.GetRootPath();
             _objectsDir = Path.Combine(root, "objects");
@@ -70,6 +72,11 @@ namespace SmartBin.Infrastructure.Storage
 
         public Task<long> GetAvailableFreeSpaceAsync(CancellationToken cancellationToken = default)
         {
+            if (_pressureMonitor != null && _pressureMonitor.MockMetricsOverride != null)
+            {
+                return Task.FromResult(_pressureMonitor.MockMetricsOverride.AvailableFreeSpace);
+            }
+
             try
             {
                 var root = _pathProvider.GetRootPath();

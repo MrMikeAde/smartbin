@@ -14,19 +14,22 @@ namespace SmartBin.Core.Services
         private readonly ICompressionService _compressionService;
         private readonly IFileHasher _fileHasher;
         private readonly IStorageManager _storageManager;
+        private readonly IFailureInjector _failureInjector;
 
         public ControlledExperimentEngine(
             ISmartBinRepository<SmartBinItem> repository,
             IRecycleBinMutationService mutationService,
             ICompressionService compressionService,
             IFileHasher fileHasher,
-            IStorageManager storageManager)
+            IStorageManager storageManager,
+            IFailureInjector? failureInjector = null)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _mutationService = mutationService ?? throw new ArgumentNullException(nameof(mutationService));
             _compressionService = compressionService ?? throw new ArgumentNullException(nameof(compressionService));
             _fileHasher = fileHasher ?? throw new ArgumentNullException(nameof(fileHasher));
             _storageManager = storageManager ?? throw new ArgumentNullException(nameof(storageManager));
+            _failureInjector = failureInjector ?? new NoOpFailureInjector();
         }
 
         /// <summary>
@@ -49,6 +52,13 @@ namespace SmartBin.Core.Services
             if (string.IsNullOrWhiteSpace(item.OriginalPath))
             {
                 throw new InvalidOperationException("Item is not eligible: Original path is unknown.");
+            }
+
+            // Validate working storage capacity (Working storage exhaustion safety)
+            var availableSpace = await _storageManager.GetAvailableFreeSpaceAsync(cancellationToken);
+            if (availableSpace < item.Size)
+            {
+                throw new InvalidOperationException($"Insufficient temporary storage. Required: {item.Size:N0} bytes, Available: {availableSpace:N0} bytes.");
             }
 
             var rootDir = _storageManager.GetStoragePath();
@@ -81,6 +91,7 @@ namespace SmartBin.Core.Services
                 stateChangedCallback?.Invoke(experiment.State);
 
                 await _mutationService.ExtractItemContentAsync(item.Id, tempAcquiredPath, cancellationToken);
+                _failureInjector.Check("AfterAcquisition");
 
                 // 2. STATE: AcquisitionVerified
                 experiment.State = ExperimentState.AcquisitionVerified;
@@ -94,12 +105,16 @@ namespace SmartBin.Core.Services
 
                 var originalHash = await _fileHasher.ComputeHashAsync(tempAcquiredPath, cancellationToken);
                 experiment.OriginalSha256 = originalHash;
+                _failureInjector.Check("AfterHashing");
 
                 // 3. STATE: Compressed
                 experiment.State = ExperimentState.Compressed;
                 stateChangedCallback?.Invoke(experiment.State);
 
+                _failureInjector.Check("BeforeCompression");
                 await _compressionService.CompressAsync(tempAcquiredPath, tempCompressedPath, cancellationToken);
+                _failureInjector.Check("DuringCompression");
+                _failureInjector.Check("AfterCompression");
 
                 var compressedInfo = new FileInfo(tempCompressedPath);
                 experiment.CompressedSize = compressedInfo.Length;
@@ -116,6 +131,7 @@ namespace SmartBin.Core.Services
                 experiment.State = ExperimentState.CompressionVerified;
                 stateChangedCallback?.Invoke(experiment.State);
 
+                _failureInjector.Check("BeforeCompressionVerification");
                 await _compressionService.DecompressAsync(tempCompressedPath, tempDecompressedPath, cancellationToken);
                 var decompressedHash = await _fileHasher.ComputeHashAsync(tempDecompressedPath, cancellationToken);
 
@@ -123,11 +139,13 @@ namespace SmartBin.Core.Services
                 {
                     throw new InvalidOperationException("Compression verification failed: Decompressed content SHA-256 mismatch.");
                 }
+                _failureInjector.Check("AfterCompressionVerification");
 
                 // 5. STATE: RestorationVerified (Simulated restoration dry-run)
                 experiment.State = ExperimentState.RestorationVerified;
                 stateChangedCallback?.Invoke(experiment.State);
 
+                _failureInjector.Check("BeforeRestorationVerification");
                 // Decompress to mock restore path
                 await _compressionService.DecompressAsync(tempCompressedPath, tempRestoredPath, cancellationToken);
                 var restoredHash = await _fileHasher.ComputeHashAsync(tempRestoredPath, cancellationToken);
@@ -136,6 +154,7 @@ namespace SmartBin.Core.Services
                 {
                     throw new InvalidOperationException("Restoration dry-run verification failed: Restored hash mismatch.");
                 }
+                _failureInjector.Check("AfterRestorationVerification");
 
                 experiment.RestorationResultPath = tempRestoredPath;
                 experiment.FinalVerificationHash = restoredHash;
@@ -206,19 +225,30 @@ namespace SmartBin.Core.Services
             var tempCompressedFile = tempFiles[0];
 
             bool commitCompleted = false;
+            var receiptPath = Path.Combine(tempDir, experiment.WindowsItemIdentifier + ".receipt");
 
             try
             {
+                _failureInjector.Check("BeforeCommit");
+
                 // Move compressed file to permanent objects folder
                 var finalObjectsPath = Path.Combine(objectsDir, Guid.NewGuid().ToString("N") + ".z");
                 File.Move(tempCompressedFile, finalObjectsPath, overwrite: true);
 
+                // Write commit receipt file
+                var receiptContent = $"{experiment.OriginalPath}\n{experiment.OriginalSize}\n{experiment.CompressedSize}\n{experiment.OriginalSha256}\n{finalObjectsPath}\n{experiment.WindowsItemIdentifier}\n{experiment.DeletionTimestamp.Ticks}";
+                File.WriteAllText(receiptPath, receiptContent);
+
                 // Perform Windows Mutation if requested and supported
                 if (executeWindowsMutation)
                 {
+                    _failureInjector.Check("DuringCommit");
                     await _mutationService.RemoveItemAsync(experiment.WindowsItemIdentifier, cancellationToken);
                     experiment.DidWindowsMutationOccur = true;
                 }
+
+                _failureInjector.Check("AfterCommit");
+                _failureInjector.Check("BeforeActivityPersistence");
 
                 // Persist as a standard recoverable item in the SmartBin repository
                 var smartBinItem = new SmartBinItem
@@ -239,6 +269,14 @@ namespace SmartBin.Core.Services
                 };
 
                 await _repository.AddAsync(smartBinItem, cancellationToken);
+
+                _failureInjector.Check("AfterActivityPersistence");
+
+                // Clean up receipt upon successful DB persistence
+                if (File.Exists(receiptPath))
+                {
+                    File.Delete(receiptPath);
+                }
 
                 experiment.State = ExperimentState.Committed;
                 experiment.UpdatedTimestamp = DateTime.UtcNow;

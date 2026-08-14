@@ -24,23 +24,24 @@ restore
 exact original 20 GB file
 ```
 
-## Working Prototype (Phase 6)
-SmartBin is a fully functional **Automatic Storage Protection** application:
+## Working Prototype (Phase 7)
+SmartBin is a fully functional, highly resilient **Automatic Storage Protection** application:
 - **Background Disk Space Monitoring**: Leverages `DriveInfo` system APIs to observe drive space at a configurable interval. Transition states (`Normal`, `Low`, `Critical`) raise dynamic, throttled events.
 - **Configurable Settings Policy**: Offers full user settings controls: automatic optimization toggle (`OFF`, `NOTIFY ME`, `AUTOMATIC`), low/critical space threshold percentages, safety floor margin (default: 5 GB), and battery-saving pause configurations.
 - **Failsafe Safety Floor & Power-Awareness**: Enforces a non-negotiable safety floor. Pauses background optimization if free space is below the Safety Floor or if running on battery power (using native `GetSystemPowerStatus` P/Invoke).
 - **Sequential One-Item-at-a-Time Execution**: For automatic optimization, processes exactly **one successful item per loop cycle**. Rechecks spaces and revalidates candidates (confirming they still exist, sizes match, and paths match) before every single operation to prevent stale plans.
-- **Crash Recovery & Cleanup**: Scans the controlled `temp/` folder on startup (`CrashRecoveryService`) to identify and clean up intermediate `.acq`, `.zip`, `.unzip`, and `.restore` residual files from crashed or interrupted runs.
+- **Transactional Receipt Journaling & Crash Recovery**: Writes a deterministic `.receipt` journal transaction file before performing any external Recycle Bin mutation. Upon startup, `CrashRecoveryService` automatically parses and resolves any database-external inconsistencies while cleaning up intermediate `.acq`, `.zip`, `.unzip`, and `.restore` residual files from crashed or interrupted runs.
+- **Adversarial Failure-Injection Framework**: Houses a test-only `IFailureInjector` architecture that asserts 10 core safety invariants and 14 distinct failure matrix types, demonstrating that SmartBin fails safely and never risks silent data loss under any runtime hardware or database error.
 - **Throttled Non-Spam Notifications**: Implements debounced notifications with cooldown throttling for alerts.
 - **Activity History Logs**: Records detailed transactional activity history logs directly to the metadata SQLite DB.
 - **WinUI 3 Dashboard Redesign**: Upgraded with a Settings Page, Activity History logs grid, and real-time simulator overrides.
 
 ## Project Structure
 - `src/SmartBin.App`: WinUI 3 dashboard desktop application shell (with separate controlled storage, read-only Windows Recycle Bin, Controlled Experiment, Settings, and Activity History tabs, supporting conditional headless live demo mode on Linux).
-- `src/SmartBin.Core`: Core domain models, state enums, heuristics, priority scorers, batch planners, executors, simulated Recycle Bin providers, test file generators, and Phase 6 background protection engines.
+- `src/SmartBin.Core`: Core domain models, state enums, heuristics, priority scorers, batch planners, executors, simulated Recycle Bin providers, test file generators, and Phase 7 automatic protection engines, crash recovery, and failure injectors.
 - `src/SmartBin.Infrastructure`: SQLite database, EF Core persistence, activity logs, stream-based hashing, storage managers, ZIP compression, native Windows Shell COM Recycle Bin mutation services, and Windows power line P/Invokes.
-- `src/SmartBin.Contracts`: Common interfaces, custom exception definitions, and service contracts.
-- `tests/`: 64 automated unit and integration tests validating safe import, heuristics, scoring models, batch planners, simulated Windows Recycle Bin, and Phase 6 automatic settings, safety floors, and crash recovery rollbacks.
+- `src/SmartBin.Contracts`: Common interfaces, failure-injection hooks, custom exception definitions, and service contracts.
+- `tests/`: 96 automated unit and integration tests validating safe import, heuristics, scoring models, batch planners, simulated Windows Recycle Bin, Phase 6 automatic settings, safety floors, and Phase 7 reliability and failure-injection matrixes.
 
 ## Safety Philosophy
 Data integrity is our highest priority.
@@ -55,11 +56,11 @@ Data integrity is our highest priority.
    ```bash
    dotnet build smartbin.sln
    ```
-3. Run unit and integration tests using:
+3. Run unit and integration tests (including the comprehensive 32-test reliability and stress matrix suite) using:
    ```bash
    dotnet test smartbin.sln
    ```
-4. Run the live demo console simulation (featuring simulated pressure, candidate explanation, batch planning, startup crash recovery sweep, power-awareness battery checks, background protection, and actual space recovery updates) using:
+4. Run the live dashboard Console/WinUI app:
    ```bash
    dotnet run --project src/SmartBin.App
    ```
