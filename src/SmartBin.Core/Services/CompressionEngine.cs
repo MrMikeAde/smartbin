@@ -13,6 +13,7 @@ namespace SmartBin.Core.Services
         private readonly ICompressionService _compressionService;
         private readonly IFileHasher _fileHasher;
         private readonly IStorageManager _storageManager;
+        private readonly IFailureInjector _failureInjector;
 
         // Configurable thresholds (sensible defaults: 5% saving, min 1024 bytes)
         public double MinSavingsRatioThreshold { get; set; } = 0.95; // 5% saving
@@ -22,12 +23,14 @@ namespace SmartBin.Core.Services
             ISmartBinRepository<SmartBinItem> repository,
             ICompressionService compressionService,
             IFileHasher fileHasher,
-            IStorageManager storageManager)
+            IStorageManager storageManager,
+            IFailureInjector? failureInjector = null)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _compressionService = compressionService ?? throw new ArgumentNullException(nameof(compressionService));
             _fileHasher = fileHasher ?? throw new ArgumentNullException(nameof(fileHasher));
             _storageManager = storageManager ?? throw new ArgumentNullException(nameof(storageManager));
+            _failureInjector = failureInjector ?? new NoOpFailureInjector();
         }
 
         public async Task CompressItemAsync(Guid itemId, CancellationToken cancellationToken = default)
@@ -72,8 +75,13 @@ namespace SmartBin.Core.Services
 
             try
             {
+                _failureInjector.Check("BeforeCompression");
+
                 // 2. Perform compression to temporary file
                 await _compressionService.CompressAsync(originalFilePath, tempCompressedPath, cancellationToken);
+
+                _failureInjector.Check("DuringCompression");
+                _failureInjector.Check("AfterCompression");
 
                 var tempCompressedInfo = new FileInfo(tempCompressedPath);
                 var compressedSize = tempCompressedInfo.Length;
@@ -100,6 +108,8 @@ namespace SmartBin.Core.Services
                     return;
                 }
 
+                _failureInjector.Check("BeforeCompressionVerification");
+
                 // 4. Verify Integrity: Decompress and compute SHA-256
                 await _compressionService.DecompressAsync(tempCompressedPath, tempDecompressedPath, cancellationToken);
 
@@ -108,6 +118,10 @@ namespace SmartBin.Core.Services
                 {
                     throw new InvalidOperationException("Integrity check failed: Decompressed file hash does not match original hash.");
                 }
+
+                _failureInjector.Check("AfterCompressionVerification");
+
+                _failureInjector.Check("BeforeCommit");
 
                 // 5. Commit atomic swap:
                 // Move temporary compressed file to its permanent object storage name

@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SmartBin.Contracts;
 using SmartBin.Core.Models;
+using SmartBin.Core.Services;
 
 namespace SmartBin.Infrastructure.Services
 {
@@ -13,17 +14,20 @@ namespace SmartBin.Infrastructure.Services
         private readonly ICompressionService _compressionService;
         private readonly IFileHasher _fileHasher;
         private readonly IStorageManager _storageManager;
+        private readonly IFailureInjector _failureInjector;
 
         public RestoreService(
             ISmartBinRepository<SmartBinItem> repository,
             ICompressionService compressionService,
             IFileHasher fileHasher,
-            IStorageManager storageManager)
+            IStorageManager storageManager,
+            IFailureInjector? failureInjector = null)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _compressionService = compressionService ?? throw new ArgumentNullException(nameof(compressionService));
             _fileHasher = fileHasher ?? throw new ArgumentNullException(nameof(fileHasher));
             _storageManager = storageManager ?? throw new ArgumentNullException(nameof(storageManager));
+            _failureInjector = failureInjector ?? new NoOpFailureInjector();
         }
 
         public async Task RestoreAsync(Guid itemId, string? targetPath = null, CancellationToken cancellationToken = default)
@@ -60,6 +64,8 @@ namespace SmartBin.Infrastructure.Services
 
             try
             {
+                _failureInjector.Check("BeforeRestoration");
+
                 // Decompress or copy to temp restoration file
                 if (item.CompressionStatus == CompressionStatus.Compressed)
                 {
@@ -75,6 +81,8 @@ namespace SmartBin.Infrastructure.Services
                     }
                 }
 
+                _failureInjector.Check("BeforeRestorationVerification");
+
                 // Calculate restored file's SHA-256 hash
                 var restoredHash = await _fileHasher.ComputeHashAsync(tempRestorationFile, cancellationToken);
 
@@ -83,6 +91,10 @@ namespace SmartBin.Infrastructure.Services
                 {
                     throw new SmartBinException("Integrity check failed: Restored file SHA-256 hash does not match original recorded hash.");
                 }
+
+                _failureInjector.Check("AfterRestorationVerification");
+
+                _failureInjector.Check("BeforeCommit");
 
                 // Ensure target directory exists
                 var targetFolder = Path.GetDirectoryName(destination);
@@ -97,8 +109,12 @@ namespace SmartBin.Infrastructure.Services
                     throw new SmartBinConflictException($"Destination file already exists just before commit: {destination}", destination);
                 }
 
+                _failureInjector.Check("DuringCommit");
+
                 // Atomically move/rename from temp file to destination
                 File.Move(tempRestorationFile, destination, overwrite: false);
+
+                _failureInjector.Check("AfterCommit");
 
                 // Update database state only after physical filesystem restoration succeeds
                 item.RestorationStatus = RestorationStatus.Restored;

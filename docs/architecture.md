@@ -21,6 +21,7 @@ This document describes the design and modular architectural layers of **SmartBi
 ### 1. SmartBin.Contracts
 - **Responsibilities**: Contains only service contracts/interfaces, generic definitions, enums, and DTOs. It has no dependencies.
 - **Key Abstractions**:
+  - `IFailureInjector`: Abstract interface for test-only checkpoints.
   - `IFileHasher`: SHA-256 byte-for-byte verification.
   - `ICompressionService`: Abstract compression, decompresion, analysis.
   - `ISmartBinRepository`: SQLite CRUD operations for metadata.
@@ -42,6 +43,7 @@ This document describes the design and modular architectural layers of **SmartBi
 ### 2. SmartBin.Core
 - **Responsibilities**: Contains pure domain models (`SmartBinItem`), business rules, value objects, and core decision logic.
 - **Key Implementations**:
+  - `NoOpFailureInjector`: Production implementation of failure injector (does nothing).
   - `ImportService`: Executes safe import steps.
   - `CompressionEngine`: Runs atomic compression.
   - `CompressionHeuristics`: Evaluates pre-compressed file extensions.
@@ -53,7 +55,7 @@ This document describes the design and modular architectural layers of **SmartBi
   - `SimulatedRecycleBinProvider`: Fakes realistic Windows Recycle Bin metadata.
   - `ControlledExperimentEngine`: Orchestrates the safe, multi-phase Phase 5 state machine.
   - `TestFileGenerator`: Creates deterministic compressible/incompressible test files.
-  - `CrashRecoveryService`: Safely scans and cleans up intermediate temp files on startup.
+  - `CrashRecoveryService`: Safely scans and cleans up intermediate temp files on startup, and resolves DB-external receipt journals.
   - `AutomaticProtectionEngine`: Coordinates the background automatic storage protection pipeline.
 
 ### 3. SmartBin.Infrastructure
@@ -62,7 +64,7 @@ This document describes the design and modular architectural layers of **SmartBi
   - `Sha256FileHasher`: Cryptographic stream-based hashing.
   - `EfSmartBinRepository` / `SmartBinDbContext`: SQLite database metadata mapping.
   - `ActivityRepository`: Activity log sqlite table mapping, implementing `IActivityLogger`.
-  - `StorageManager`: Safely creates and manages physical storage folders.
+  - `StorageManager`: Safely creates and manages physical storage folders and checks drive free space.
   - `ZipCompressionService`: Implementation of `ICompressionService` using Deflate streams.
   - `StoragePressureMonitor`: Scans actual physical disks using `DriveInfo`.
   - `StorageMonitor`: Asynchronous background periodic observer implementing `IStorageMonitor`.
@@ -75,10 +77,42 @@ This document describes the design and modular architectural layers of **SmartBi
 ### 4. SmartBin.App
 - **Responsibilities**: WinUI 3 Application desktop UI providing views and dashboard panels. It includes five separate tabs: "SmartBin Storage", "Windows Recycle Bin", "Controlled Experiment", "Settings", and "Activity History".
 
-## Windows Recycle Bin Integration Boundary
+---
 
-To protect data integrity, the integration with the Windows Recycle Bin is strictly mediated:
+## Reliability & Fault-Tolerance Architecture
+
+SmartBin's architecture is designed under the **fail-safe principle**: when an operation is interrupted or encounters hardware/filesystem errors, it rolls back state and preserves user data completely.
+
+```text
+               [Prepare & Verify Stage]
+                          │
+         Writes temp file inside storage area
+                          │
+                 [Verification Stage]
+                          │
+          Double checks SHA-256 against source
+                          │ (If fails, rollback temp)
+                          ▼
+            [Receipt Journaling Stage]
+                          │
+       Writes receipt temp/[item_id].receipt to disk
+                          │
+             [Recycle Bin Mutation Stage]
+                          │ (If fails, rollback temp & receipt)
+                          ▼
+              [Database Persistence Stage]
+                          │
+        Commits SmartBinItem, deletes receipt file
+                          │ (If fails, receipt remains)
+                          ▼
+                      [Success]
 ```
-Windows Recycle Bin ──> [ WindowsRecycleBinProvider ] ──> WindowsRecycleBinItems ──> [ CandidateAnalyzer ] ──> Explainable Analysis
-```
-Mutating operations (such as deletion or restoration) are strictly isolated behind `WindowsRecycleBinMutationService` and are only ever triggered under explicit user-confirmed commit boundaries.
+
+### 1. Sequential Commit Boundaries
+A destructive external Recycle Bin mutation is never executed until the copied content has been successfully deflated, verified byte-for-byte using cryptographic SHA-256 hashes, and a dry-run restoration dry-restore verification has succeeded.
+
+### 2. Transaction Receipt Journaling (WAL)
+To prevent inconsistencies where a filesystem/external operation succeeds but the SQLite database write fails (e.g. power loss, lock errors), SmartBin uses transactional receipt files:
+- Just before mutating the Recycle Bin, SmartBin writes a `.receipt` transaction journal file to disk detailing the exact state.
+- Once the database insert successfully persists, the `.receipt` file is cleaned up.
+- On startup, `CrashRecoveryService` parses remaining `.receipt` files to reconcile the database with actual filesystem states, ensuring zero silent data loss.

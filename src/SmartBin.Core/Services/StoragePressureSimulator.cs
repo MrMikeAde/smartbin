@@ -49,6 +49,54 @@ namespace SmartBin.Core.Services
         }
 
         /// <summary>
+        /// Activates simulated storage pressure based on a custom used percentage.
+        /// </summary>
+        public void EnablePercentageUsed(double usedPercentage, long totalCapacity = 100 * 1024 * 1024 * 1024L)
+        {
+            double freePercentage = 100.0 - usedPercentage;
+            EnablePercentageFree(freePercentage, totalCapacity);
+        }
+
+        /// <summary>
+        /// Activates simulated storage pressure based on a custom free percentage.
+        /// </summary>
+        public void EnablePercentageFree(double freePercentage, long totalCapacity = 100 * 1024 * 1024 * 1024L)
+        {
+            long freeSpace = (long)(totalCapacity * (freePercentage / 100.0));
+            long usedSpace = totalCapacity - freeSpace;
+
+            var state = StoragePressureState.Normal;
+            if (freePercentage < _pressureMonitor.CriticalPressureThresholdPercentage)
+            {
+                state = StoragePressureState.Critical;
+            }
+            else if (freePercentage < _pressureMonitor.LowPressureThresholdPercentage)
+            {
+                state = StoragePressureState.Low;
+            }
+
+            var metrics = new StorageSpaceMetrics
+            {
+                TotalCapacity = totalCapacity,
+                AvailableFreeSpace = freeSpace,
+                UsedSpace = usedSpace,
+                FreeSpacePercentage = freePercentage,
+                PressureState = state
+            };
+
+            _pressureMonitor.MockMetricsOverride = metrics;
+        }
+
+        /// <summary>
+        /// Activates simulated storage pressure by setting available free space in bytes.
+        /// </summary>
+        public void SetFreeSpaceBytes(long freeBytes, long totalCapacity = 100 * 1024 * 1024 * 1024L)
+        {
+            double freePercentage = totalCapacity > 0 ? ((double)freeBytes / totalCapacity) * 100.0 : 100.0;
+            EnablePercentageFree(freePercentage, totalCapacity);
+        }
+
+        /// <summary>
         /// Disables the simulation, returning the pressure monitor to real physical drive checks.
         /// </summary>
         public void DisableSimulation()
