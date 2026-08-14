@@ -33,7 +33,7 @@ namespace SmartBin.Infrastructure.Tests
 
         public SafeLifecycleTests()
         {
-            // Set up a isolated temp folder for this test run
+            // Set up an isolated temp folder for this test run
             _testRootDir = Path.Combine(Path.GetTempPath(), "SmartBinTests_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_testRootDir);
 
@@ -256,8 +256,7 @@ namespace SmartBin.Infrastructure.Tests
             var item = (SmartBinItem)await _importService.ImportFileAsync(sourcePath);
             var uncompressedStoragePath = item.CurrentStoragePath;
 
-            // We create a mock/faulty engine or simulate an issue by deleting the source before compressing
-            // Let's delete the stored file from disk to force a FileNotFoundException during compression
+            // Delete the stored file from disk to force a FileNotFoundException during compression
             File.Delete(uncompressedStoragePath);
 
             // Act & Assert
@@ -330,7 +329,6 @@ namespace SmartBin.Infrastructure.Tests
             File.Delete(sourcePath);
 
             // Act & Assert
-            // Decompress or SHA verification will fail and throw
             await Assert.ThrowsAnyAsync<Exception>(() => _restoreService.RestoreAsync(item.Id));
 
             // Verify original source is NOT corrupted or falsely created, and original stored file/metadata remains
@@ -342,6 +340,75 @@ namespace SmartBin.Infrastructure.Tests
             // Verify temp directory has no leaks
             var tempFiles = Directory.GetFiles(Path.Combine(_testRootDir, "temp"));
             Assert.Empty(tempFiles);
+        }
+
+        #endregion
+
+        #region Phase 10 Validation & Heuristics Tests
+
+        [Fact]
+        public async Task Candidate_Revalidation_DisappearedItem_SafelyAborted()
+        {
+            // Arrange
+            var mutationService = new WindowsRecycleBinMutationService(_pathProvider);
+            var engine = new ControlledExperimentEngine(
+                _repository,
+                mutationService,
+                _compressionService,
+                _fileHasher,
+                _storageManager);
+
+            // A candidate pointing to a non-existent item ID
+            var missingCandidate = new WindowsRecycleBinItem
+            {
+                Id = "win_nonexistent_9999",
+                FileName = "disappeared.txt",
+                OriginalPath = Path.Combine(_testRootDir, "disappeared.txt"),
+                Size = 10000,
+                Volume = "C:",
+                IsSimulated = true
+            };
+
+            // Act & Assert
+            // When candidate content cannot be extracted, engine safely aborts and throws
+            await Assert.ThrowsAnyAsync<Exception>(() => engine.PrepareAndVerifyAsync(missingCandidate));
+        }
+
+        [Fact]
+        public async Task Heuristics_SyntheticDataTypes_BehaveSensibly()
+        {
+            // Test compression ratios for synthetic representative data types
+            var txtContent = new string('A', 50000);
+            var jsonContent = "{\"data\": [" + string.Join(",", Enumerable.Repeat("{\"id\": 1, \"name\": \"sample\"}", 500)) + "]}";
+            var csvContent = string.Join("\n", Enumerable.Repeat("1,John,Doe,john@example.com,555-0199,Developer", 1000));
+
+            var txtPath = Path.Combine(_testRootDir, "data.txt");
+            var jsonPath = Path.Combine(_testRootDir, "data.json");
+            var csvPath = Path.Combine(_testRootDir, "data.csv");
+
+            await CreateDeterministicFileAsync(txtPath, txtContent);
+            await CreateDeterministicFileAsync(jsonPath, jsonContent);
+            await CreateDeterministicFileAsync(csvPath, csvContent);
+
+            var txtItem = (SmartBinItem)await _importService.ImportFileAsync(txtPath);
+            var jsonItem = (SmartBinItem)await _importService.ImportFileAsync(jsonPath);
+            var csvItem = (SmartBinItem)await _importService.ImportFileAsync(csvPath);
+
+            await _compressionEngine.CompressItemAsync(txtItem.Id);
+            await _compressionEngine.CompressItemAsync(jsonItem.Id);
+            await _compressionEngine.CompressItemAsync(csvItem.Id);
+
+            var txtDb = await _repository.GetByIdAsync(txtItem.Id);
+            var jsonDb = await _repository.GetByIdAsync(jsonItem.Id);
+            var csvDb = await _repository.GetByIdAsync(csvItem.Id);
+
+            Assert.Equal(CompressionStatus.Compressed, txtDb!.CompressionStatus);
+            Assert.Equal(CompressionStatus.Compressed, jsonDb!.CompressionStatus);
+            Assert.Equal(CompressionStatus.Compressed, csvDb!.CompressionStatus);
+
+            Assert.True(txtDb.CurrentStoredSize < txtDb.OriginalSize / 5); // >80% reduction
+            Assert.True(jsonDb.CurrentStoredSize < jsonDb.OriginalSize / 3);
+            Assert.True(csvDb.CurrentStoredSize < csvDb.OriginalSize / 3);
         }
 
         #endregion
