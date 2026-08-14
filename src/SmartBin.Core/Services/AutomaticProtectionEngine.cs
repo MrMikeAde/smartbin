@@ -55,6 +55,9 @@ namespace SmartBin.Core.Services
         {
             try
             {
+                // Defensive security validation: normalize settings before executing any background code
+                Settings.ValidateAndNormalize();
+
                 // 1. Check if policy allows automatic optimization
                 if (Settings.Mode != AutoOptimizationMode.Automatic)
                 {

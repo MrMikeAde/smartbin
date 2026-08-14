@@ -564,8 +564,8 @@ namespace SmartBin.Infrastructure.Tests
         public async Task AutomaticProtection_StopsWhenTargetReached()
         {
             // Arrange
-            _pressureSimulator.SetFreeSpaceBytes(12 * 1024 * 1024 * 1024L); // 12 GB
-            _autoProtectionEngine.Settings.TargetFreeSpacePercentage = 15.0; // 15 GB required (so we need 3 GB)
+            _pressureSimulator.SetFreeSpaceBytes(14 * 1024 * 1024 * 1024L); // 14 GB (14% free, which is Low pressure since Low is < 15%)
+            _autoProtectionEngine.Settings.TargetFreeSpacePercentage = 25.0; // 25 GB target (so we need to reclaim 11 GB)
 
             var mock1 = CreateCompressibleMockItem("item1", 2 * 1024 * 1024 * 1024L); // Reclaims ~1.5 GB
             var mock2 = CreateCompressibleMockItem("item2", 2 * 1024 * 1024 * 1024L); // Reclaims ~1.5 GB

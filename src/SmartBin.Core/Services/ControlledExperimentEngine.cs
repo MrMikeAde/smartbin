@@ -32,6 +32,16 @@ namespace SmartBin.Core.Services
             _failureInjector = failureInjector ?? new NoOpFailureInjector();
         }
 
+        private void EnsurePathIsSecure(string path)
+        {
+            var fullPath = Path.GetFullPath(path);
+            var rootPath = Path.GetFullPath(_storageManager.GetStoragePath());
+            if (!fullPath.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new UnauthorizedAccessException($"Access denied: Path '{path}' is outside the authorized SmartBin storage root.");
+            }
+        }
+
         /// <summary>
         /// Runs the sequential acquisition, compression, and verification pipeline up to ReadyForCommit stage.
         /// Does NOT modify the Windows Recycle Bin item yet (respects commit boundary).
@@ -71,6 +81,12 @@ namespace SmartBin.Core.Services
             var tempDecompressedPath = Path.Combine(tempDir, Guid.NewGuid().ToString("N") + ".unzip");
             var tempRestoredPath = Path.Combine(tempDir, Guid.NewGuid().ToString("N") + ".dryrestore");
 
+            // Ensure constructed paths do not violate trust boundaries
+            EnsurePathIsSecure(tempAcquiredPath);
+            EnsurePathIsSecure(tempCompressedPath);
+            EnsurePathIsSecure(tempDecompressedPath);
+            EnsurePathIsSecure(tempRestoredPath);
+
             var experiment = new ControlledExperimentItem
             {
                 WindowsItemIdentifier = item.Id,
@@ -101,6 +117,12 @@ namespace SmartBin.Core.Services
                 if (!acqInfo.Exists || acqInfo.Length != item.Size)
                 {
                     throw new InvalidOperationException("Acquisition failed: Copied file size does not match expected size or is missing.");
+                }
+
+                // Reparse point / Symlink check on acquired temp file
+                if ((acqInfo.Attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint)
+                {
+                    throw new InvalidOperationException("Reparse points are not supported for safety.");
                 }
 
                 var originalHash = await _fileHasher.ComputeHashAsync(tempAcquiredPath, cancellationToken);
@@ -233,6 +255,10 @@ namespace SmartBin.Core.Services
 
                 // Move compressed file to permanent objects folder
                 var finalObjectsPath = Path.Combine(objectsDir, Guid.NewGuid().ToString("N") + ".z");
+
+                // Security path traversal check
+                EnsurePathIsSecure(finalObjectsPath);
+
                 File.Move(tempCompressedFile, finalObjectsPath, overwrite: true);
 
                 // Write commit receipt file
