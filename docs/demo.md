@@ -1,62 +1,90 @@
-# SmartBin - Controlled Demonstration Script
+# SmartBin — Reproducible Demonstration Protocol
 
-This document provides a step-by-step repeatable demonstration protocol using programmatically generated test data.
+This document defines a step-by-step, reproducible demonstration protocol for testing SmartBin safely using synthetic test data.
 
----
-
-## ⚠ Demonstration Safety Guarantees
-
-- **DO NOT USE PERSONAL USER FILES**: All testing should be performed using SmartBin's built-in programmatic test data generator.
-- **SINGLE-ITEM BOUNDARY**: SmartBin only operates on one item at a time during controlled experiment proofs.
-- **100% BYTE-FOR-BYTE FIDELITY**: Every restored file's SHA-256 hash is computed and validated against its pre-compression hash before completion.
+> **CRITICAL SAFETY DIRECTIVE:** Demonstration protocols MUST strictly use generated test data produced by `TestFileGenerator`. Never run demonstration workflows on real user documents.
 
 ---
 
-## Step-by-Step Demonstration Protocol
+## Prerequisites
 
-### Step 1: Launch SmartBin
-1. Launch `SmartBin.App.exe`.
-2. Confirm the dashboard loads and displays current storage utilization metrics.
+1. **Operating System:** Windows 10 or Windows 11 (x64 or ARM64).
+2. **SDK:** .NET 10.0 SDK installed.
+3. **SmartBin Repository:** Cloned and built (`dotnet build smartbin.sln`).
 
-### Step 2: Generate Safe Test Data
-1. Navigate to the **Controlled Experiment** tab.
-2. In the Demonstration Helper panel, select **"10 MB highly compressible text file"** from the drop-down menu.
-3. Click **Generate & Delete to Bin**.
-4. SmartBin generates `demo_test_XXXXXX.txt` in a temporary folder and registers it as a Recycle Bin candidate.
+---
 
-### Step 3: Discover and Inspect Candidate
-1. Switch to the **Windows Recycle Bin** tab.
-2. Verify that `demo_test_XXXXXX.txt` is listed with its original size (10,485,760 bytes) and deletion timestamp.
-3. Select the file in the list.
-4. Review the Terminal box to observe the plain-language explainability scoring and priority rationale.
+## Step-by-Step Demonstration Workflow
 
-### Step 4: Initiate Controlled Experiment
-1. Navigate back to the **Controlled Experiment** tab.
-2. Verify that `demo_test_XXXXXX.txt` is displayed as the target file.
-3. Click **Begin Controlled Test**.
+### Step 1: Generate Synthetic Test Data
+Run the test data generator or automated integration test to create a deterministic test file:
 
-### Step 5: Observe Phase 5 Safety Pipeline Execution
-Watch the 6-stage checklist update dynamically:
-- `✓ Candidate Item Identified`
-- `✓ Safe Extraction/Acquisition`
-- `✓ Integrity SHA-256 Calculated`
-- `✓ Lossless Compression Done` (Compresses ~10 MB file down to ~15 KB!)
-- `✓ Compressed Integrity Verified`
-- `✓ Restoration Integrity Verified`
+```csharp
+// Generates a 10 MB highly compressible synthetic text file
+var generator = new TestFileGenerator();
+string testFilePath = Path.Combine(Path.GetTempPath(), "SmartBin_Demo_File.txt");
+await generator.GenerateCompressibleFileAsync(testFilePath, sizeInBytes: 10 * 1024 * 1024);
+```
 
-### Step 6: Commit the Operation
-1. Observe the status change to **"Status: READY FOR COMMIT"**.
-2. Keep **Execute Windows Mutation** checked if testing Windows COM mutation, or uncheck to retain the original Recycle Bin entry.
-3. Click **Commit Controlled Experiment**.
-4. Terminal confirms: `✓ Controlled Experiment Committed successfully.`
+### Step 2: Record Baseline Metrics & SHA-256
+Compute and log the initial file metrics:
+* **File Size:** `10,485,760 bytes` (~10 MB)
+* **SHA-256 Hash:** Compute stream hash (e.g., `8f3a...b91e`)
 
-### Step 7: Restore Item and Verify Byte-for-Byte Fidelity
-1. Navigate to the **SmartBin Storage** tab.
-2. Select `demo_test_XXXXXX.txt` from the list.
-3. Click **Restore Selected** and choose a target destination directory (e.g. `Downloads` or `Documents`).
-4. Terminal logs:
-   - `Restoring...`
-   - `Verifying integrity...`
-   - `✓ Restored successfully: demo_test_XXXXXX.txt`
-   - `SHA-256 verified: [64-character hash]`
-5. Confirm the restored file opens perfectly and matches original size and hash down to the bit!
+### Step 3: Delete File to Windows Recycle Bin
+Move the generated test file into the Windows Recycle Bin using Windows Explorer or standard file deletion APIs.
+
+### Step 4: Launch SmartBin Application
+Launch the SmartBin WinUI 3 dashboard:
+```bash
+dotnet run --project src/SmartBin.App
+```
+
+### Step 5: Candidate Discovery & Scoring
+1. Navigate to the **"Windows Recycle Bin"** tab.
+2. Observe `WindowsRecycleBinProvider` discovering the test file (`SmartBin_Demo_File.txt`).
+3. Note the candidate score assigned by `CandidateAnalyzer` based on size, file extension, and age heuristics.
+
+### Step 6: Initiate Controlled Experiment
+1. Navigate to the **"Controlled Experiment"** tab.
+2. Select `SmartBin_Demo_File.txt` from the candidate dropdown.
+3. Click **"Prepare Optimization"**.
+
+### Step 7: Observe Pipeline Stages
+Watch the live terminal log as the 11-stage pipeline executes:
+1. Candidate Acquisition (`.acq` created in temp)
+2. Baseline SHA-256 Hash calculation
+3. Streaming Deflate Compression (`.zip` created in temp)
+4. Decompression SHA-256 Verification
+5. Restoration Dry-Run Verification
+6. State set to **`ReadyForCommit`**
+
+### Step 8: User Confirmation & Commit
+1. Review the estimated storage yield (~99.8% reduction, reclaiming ~10.4 MB).
+2. Click **"Commit Optimization"**.
+3. Confirm the receipt journal entry creation and original Recycle Bin removal.
+
+### Step 9: Restore the File
+1. Navigate to **"SmartBin Storage"**.
+2. Locate `SmartBin_Demo_File.txt` and click **"Restore"**.
+3. Specify the target restore directory (e.g., `C:\Temp\Restored`).
+
+### Step 10: Verify Byte-for-Byte Restoration
+Compute the SHA-256 hash of the restored file and compare it against the Step 2 baseline:
+```text
+Original Baseline SHA-256 : 8f3a...b91e
+Restored File SHA-256    : 8f3a...b91e
+Result                   : IDENTICAL (100% Match)
+```
+
+---
+
+## Verification Matrix
+
+| Step | Expected Result | Pass Criteria |
+| :--- | :--- | :--- |
+| Candidate Discovery | Item listed in UI with correct original path & size | Match |
+| Trial Compression | Archive size ~15 KB (from 10 MB) | > 99% space yield |
+| SHA-256 Verification | Hashes match perfectly | Bit-for-bit identical |
+| Commit Boundary | Recycle Bin item removed, metadata logged | Zero orphaned items |
+| Restoration | File restored to target directory | Matching SHA-256 |
