@@ -1,8 +1,10 @@
 # SmartBin
 
-An experimental adaptive Recycle Bin that explores reclaiming storage from recoverable deleted files through intelligent compression.
+An experimental adaptive Recycle Bin utility for Windows that explores reclaiming storage from recoverable deleted files through intelligent, lossless compression.
 
-> **Disclaimer:** SmartBin is an independent experimental project and is not affiliated with Microsoft or Apple. It does not replace the default Windows Recycle Bin.
+> **Disclaimer:** SmartBin is an independent experimental project and is not affiliated with Microsoft Corporation. It does not replace the default Windows Recycle Bin, but operates as an adaptive storage assistant.
+
+---
 
 ## Positioning & Trust Scope
 
@@ -10,8 +12,9 @@ To understand SmartBin, it is critical to distinguish what the application is an
 
 ### What SmartBin IS
 - **Adaptive storage protection**: A non-elevated user-mode system utility that monitors drive storage constraints and intelligently compresses eligible deleted files.
-- **Byte-for-byte fidelity**: Lossless compression utilizing Deflate algorithms with strict SHA-256 validation to ensure restored files are identical down to the bit.
+- **Byte-for-byte fidelity**: Lossless compression utilizing ZIP algorithms with strict SHA-256 validation to ensure restored files are identical down to the bit.
 - **Transactional state machine**: Coordinates single-item operations inside a secure, sequential safety pipeline with automated crash recovery.
+- **100% Local & Private**: Operates entirely offline without cloud accounts, network connections, or telemetry.
 
 ### What SmartBin IS NOT
 - **Conventional deletion tool**: SmartBin never automatically permanently deletes user data or bypasses Recycle Bin retention.
@@ -23,7 +26,8 @@ To understand SmartBin, it is critical to distinguish what the application is an
 ---
 
 ## Proposed Solution & Workflow
-Deleted files remain recoverable inside a secure local storage area. When the user's storage gets constrained, recoverable files are intelligently compressed using algorithms like ZIP, Brotli, or Zstandard, preserving their original path and metadata inside a lightweight database. When a file is restored, SmartBin decompresses it, guaranteeing byte-for-byte identity.
+
+Deleted files remain recoverable inside a secure local storage area. When storage becomes constrained, recoverable files are losslessly compressed, preserving their original path and metadata inside a lightweight database. When a file is restored, SmartBin decompresses it, guaranteeing byte-for-byte identity via SHA-256 validation.
 
 ```text
 20 GB deleted file
@@ -36,7 +40,7 @@ intelligent compression
         ↓
 restore
         ↓
-exact original 20 GB file
+exact original 20 GB file (verified SHA-256)
 ```
 
 ---
@@ -47,7 +51,7 @@ exact original 20 GB file
      [User Interaction]
              │
              ▼
-     [WinUI Dashboard]
+     [WinUI 3 Dashboard]
              │
              ▼
    [Storage Policy / Intel] ──(Checks Space/Power)
@@ -65,38 +69,49 @@ exact original 20 GB file
      [Verification Stage] ──(SHA-256 Stream Hashing)
              │
              ▼
-      [Receipt Journal] ──(Crash Recovery Wal)
+      [Receipt Journal] ──(Crash Recovery WAL)
 ```
 
 ---
 
-## Working Prototype (Phase 8)
-SmartBin is a fully hardened, secure, and production-quality Windows-first adaptive storage solution:
-- **Harden Trust Boundaries**: All file writes and reads are locked within the canonical storage root via strict prefix check guards. Reparse points (junctions, symlinks) are explicitly rejected.
-- **Defensive Configuration Validation**: User settings implement out-of-range checks on thresholds and defaults, immediately disabling automatic protect modes and falling back to conservative limits if corrupted.
-- **Background Disk Space Monitoring**: Observes drive capacity at regular intervals and raises throttled, debounced alerts.
-- **Failsafe Safety Floor & Power-Awareness**: Enforces a non-negotiable safety floor margin (default: 5 GB) and pauses optimizations when running on battery.
-- **Sequential Commit Boundary**: Mutates Recycle Bin items sequentially, exactly one file at a time, following an 11-stage verification state machine.
-- **Crash Recovery & Receipt Journaling**: Reconciles filesystem state with database records upon startup via transactional `.receipt` files to protect against database transaction interruptions.
+## Phase 9 Release Capabilities
+
+SmartBin Phase 9 transforms the hardened engineering foundation into a shippable Windows application:
+- **Polished WinUI 3 Dashboard**: Features real-time storage pressure visualization, system state indicators, SmartBin engine metrics, and live log terminal.
+- **Onboarding & First-Run Experience**: Dedicated Welcome Guide tab explaining product purpose, safety guarantees, local storage boundary, and verifying automatic protection is OFF by default.
+- **Settings & Validation UX**: Interactive policy controls for thresholds, safety floor, and battery awareness with immediate inline input validation.
+- **Safe Controlled Demonstration Helper**: Integrated programmatic test file generator allowing safe, repeatable demonstration using synthetic test data.
+- **Multi-Platform Support**: Configured for both Windows x64 (`win10-x64`) and Windows ARM64 (`win10-arm64`) architectures.
+- **Comprehensive Documentation**: Complete suite of guides including `packaging.md`, `installation.md`, `demo.md`, `user-guide.md`, and `phase-9-checklist.md`.
+
+---
 
 ## Project Structure
-- `src/SmartBin.App`: WinUI 3 dashboard desktop application shell.
+- `src/SmartBin.App`: WinUI 3 desktop application dashboard shell.
 - `src/SmartBin.Core`: Core domain models, prioritize planners, heuristics, and state engines.
-- `src/SmartBin.Infrastructure`: SQLite repository, Ef Core, ZIP compression, Shell COM mutation services, and Windows power P/Invokes.
-- `src/SmartBin.Contracts`: Common interfaces, failure-injection hooks, custom exception definitions, and settings configurations.
-- `tests/`: Extensive automated unit, integration, failure-injection, and security regression suites (102 passing tests).
+- `src/SmartBin.Infrastructure`: SQLite repository, EF Core 9.0, ZIP compression, Shell COM mutation services, and Windows power P/Invokes.
+- `src/SmartBin.Contracts`: Interface contracts, failure-injection hooks, exception definitions, and settings models.
+- `tests/`: Automated unit and integration test suites (102 passing tests).
+- `docs/`: Technical specifications, security trust boundaries, packaging guides, user guides, and demonstration protocols.
+
+---
 
 ## Development Setup & Testing
-1. Clone this repository.
-2. Build the solution using:
+
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/MrMikeAde/smartbin.git
+   cd smartbin
+   ```
+2. Build the solution:
    ```bash
    dotnet build smartbin.sln
    ```
-3. Run all tests (including safety invariants and security hardening tests) using:
+3. Run all automated test suites (102 passing tests):
    ```bash
    dotnet test smartbin.sln
    ```
-4. Run the live dashboard Console/WinUI app:
+4. Run the application:
    ```bash
    dotnet run --project src/SmartBin.App
    ```

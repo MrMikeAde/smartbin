@@ -18,7 +18,7 @@ using SmartBin.Infrastructure.Services;
 namespace SmartBin.App
 {
     /// <summary>
-    /// Interactive Dashboard supporting Importing, Listing, Compression, Restoring, and Adaptive Storage Intelligence.
+    /// Interactive Production Dashboard supporting Importing, Listing, Compression, Restoring, and Adaptive Storage Intelligence.
     /// </summary>
     public sealed partial class MainWindow : Window
     {
@@ -40,7 +40,7 @@ namespace SmartBin.App
 
         // Phase 4 providers
         private IRecycleBinProvider? _realWinProvider;
-        private IRecycleBinProvider? _simWinProvider;
+        private SimulatedRecycleBinProvider? _simWinProvider;
 
         // Phase 5 services
         private WindowsRecycleBinMutationService? _mutationService;
@@ -167,33 +167,60 @@ namespace SmartBin.App
                 var items = (await _repository.GetAllAsync()).ToList();
                 ItemsListView.ItemsSource = items;
 
+                // Handle Empty States
+                if (ItemsListViewEmptyState != null)
+                {
+                    ItemsListViewEmptyState.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                }
+                ItemsListView.Visibility = items.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+
                 long totalOriginalSize = items.Sum(i => i.OriginalSize);
                 long totalStoredSize = items.Sum(i => i.CurrentStoredSize);
                 long totalSpaceSaved = totalOriginalSize - totalStoredSize;
 
-                OriginalSizeText.Text = $"{totalOriginalSize:N0} bytes";
-                StoredSizeText.Text = $"{totalStoredSize:N0} bytes";
-                SpaceSavedText.Text = $"{totalSpaceSaved:N0} bytes";
+                if (OriginalSizeText != null) OriginalSizeText.Text = $"{totalOriginalSize:N0} bytes";
+                if (StoredSizeText != null) StoredSizeText.Text = $"{totalStoredSize:N0} bytes";
+                if (SpaceSavedText != null) SpaceSavedText.Text = $"{totalSpaceSaved:N0} bytes";
 
-                FilesProtectedText.Text = items.Count.ToString();
-                CompressedText.Text = items.Count(i => i.CompressionStatus == CompressionStatus.Compressed).ToString();
-                OptimizedText.Text = items.Count(i => i.CompressionStatus == CompressionStatus.NotFeasible).ToString();
+                if (FilesProtectedText != null) FilesProtectedText.Text = items.Count.ToString();
+                if (CompressedText != null) CompressedText.Text = items.Count(i => i.CompressionStatus == CompressionStatus.Compressed).ToString();
+                if (OptimizedText != null) OptimizedText.Text = items.Count(i => i.CompressionStatus == CompressionStatus.NotFeasible).ToString();
 
                 // Compute potential additional recovery
                 var candidates = await _candidateAnalyzer.AnalyzeCandidatesAsync();
                 long potentialSaved = (long)candidates.Sum(c => c.IsEligibleForOptimization ? c.EstimatedSavingsBytes : 0);
-                PotentialSavedText.Text = $"{potentialSaved:N0} bytes";
+                if (PotentialSavedText != null) PotentialSavedText.Text = $"{potentialSaved:N0} bytes";
 
                 // Update Storage Utilization Visualization
                 var metrics = await _pressureMonitor.GetStorageMetricsAsync();
-                StorageProgress.Value = Math.Clamp(metrics.FreeSpacePercentage, 0, 100);
+                double usedPercentage = 100.0 - metrics.FreeSpacePercentage;
+
+                if (StorageProgress != null) StorageProgress.Value = Math.Clamp(usedPercentage, 0, 100);
 
                 var isSim = _pressureMonitor.MockMetricsOverride != null ? " (SIMULATION)" : "";
-                StorageStatusText.Text = $"{metrics.FreeSpacePercentage:F1}% Free Space ({metrics.PressureState}{isSim})";
+                if (StorageStatusText != null) StorageStatusText.Text = $"{usedPercentage:F1}% Space Used ({metrics.PressureState}{isSim})";
+                if (StoragePressureLabel != null) StoragePressureLabel.Text = $"System State: {metrics.PressureState.ToString().ToUpperInvariant()}";
+
+                if (TotalCapacityText != null) TotalCapacityText.Text = $"{metrics.TotalCapacity / (1024.0 * 1024 * 1024):F1} GB";
+                if (UsedStorageText != null) UsedStorageText.Text = $"{metrics.UsedSpace / (1024.0 * 1024 * 1024):F1} GB";
+                if (AvailableStorageText != null) AvailableStorageText.Text = $"{metrics.AvailableFreeSpace / (1024.0 * 1024 * 1024):F1} GB ({metrics.FreeSpacePercentage:F1}% free)";
+
+                if (_autoEngine != null)
+                {
+                    if (SafetyFloorText != null) SafetyFloorText.Text = $"{_autoEngine.Settings.MinimumSafetyMarginBytes / (1024.0 * 1024 * 1024):F1} GB";
+                    if (TargetLevelText != null) TargetLevelText.Text = $"{_autoEngine.Settings.TargetFreeSpacePercentage:F1}%";
+                    if (AutoProtectStatusText != null) AutoProtectStatusText.Text = _autoEngine.Settings.Mode.ToString().ToUpperInvariant();
+                }
 
                 // Populate Activity logs list
                 var logs = await _activityRepository.GetLogsAsync();
                 ActivityListView.ItemsSource = logs;
+
+                if (ActivityListViewEmptyState != null)
+                {
+                    ActivityListViewEmptyState.Visibility = logs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                }
+                ActivityListView.Visibility = logs.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
             }
             catch (Exception ex)
             {
@@ -204,7 +231,7 @@ namespace SmartBin.App
         private async void RefreshWinRecycleBinUI()
         {
             // Favour simulation provider when simulation toggle switch is checked
-            var provider = (SimToggle != null && SimToggle.IsOn) ? _simWinProvider : _realWinProvider;
+            IRecycleBinProvider? provider = (SimToggle != null && SimToggle.IsOn) ? _simWinProvider : _realWinProvider;
             if (provider == null || WinItemsListView == null) return;
 
             try
@@ -212,8 +239,14 @@ namespace SmartBin.App
                 var items = (await provider.EnumerateItemsAsync()).ToList();
                 WinItemsListView.ItemsSource = items;
 
+                if (WinItemsListViewEmptyState != null)
+                {
+                    WinItemsListViewEmptyState.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                }
+                WinItemsListView.Visibility = items.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+
                 var stats = await provider.GetStatisticsAsync();
-                WinStatsText.Text = $"{stats.TotalItems} items ({stats.TotalSize / (1024 * 1024):N0} MB)";
+                if (WinStatsText != null) WinStatsText.Text = $"{stats.TotalItems} items ({stats.TotalSize / (1024 * 1024):N0} MB)";
             }
             catch (Exception ex)
             {
@@ -223,7 +256,10 @@ namespace SmartBin.App
 
         private void LogToTerminal(string msg)
         {
-            TerminalText.Text = $"[{DateTime.Now:HH:mm:ss}] {msg}\n" + TerminalText.Text;
+            if (TerminalText != null)
+            {
+                TerminalText.Text = $"[{DateTime.Now:HH:mm:ss}] {msg}\n" + TerminalText.Text;
+            }
         }
 
         private async void OnImportFileClicked(object sender, RoutedEventArgs e)
@@ -286,6 +322,57 @@ namespace SmartBin.App
             catch (Exception ex)
             {
                 LogToTerminal($"Simulation Toggle Error: {ex.Message}");
+            }
+        }
+
+        private async void OnGenerateDemoClicked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string demoType = "10mb_compressible";
+                if (DemoFileTypeCombo != null)
+                {
+                    demoType = DemoFileTypeCombo.SelectedIndex switch
+                    {
+                        1 => "100mb_compressible",
+                        2 => "500mb_mixed",
+                        3 => "1gb_incompressible",
+                        _ => "10mb_compressible"
+                    };
+                }
+
+                var tempFolder = Path.Combine(Path.GetTempPath(), "SmartBinDemo");
+                Directory.CreateDirectory(tempFolder);
+                var filePath = Path.Combine(tempFolder, $"demo_test_{Guid.NewGuid().ToString("N").Substring(0, 6)}.txt");
+
+                LogToTerminal($"Generating programmatic test file ({demoType})...");
+                await TestFileGenerator.GenerateTestFileAsync(filePath, demoType);
+
+                var fileInfo = new FileInfo(filePath);
+                LogToTerminal($"✓ Generated demo test file ({fileInfo.Length:N0} bytes) at: {filePath}");
+
+                // Register with simulated Recycle Bin for read-write safe testing
+                if (_simWinProvider != null)
+                {
+                    var simItem = new WindowsRecycleBinItem
+                    {
+                        Id = "sim_gen_" + Guid.NewGuid().ToString("N").Substring(0, 8),
+                        FileName = fileInfo.Name,
+                        OriginalPath = filePath,
+                        Size = fileInfo.Length,
+                        DeletedTimestamp = DateTime.UtcNow,
+                        Volume = "C:",
+                        IsSimulated = true
+                    };
+                    _simWinProvider.AddItem(simItem);
+                    LogToTerminal($"✓ Test item automatically made available in Recycle Bin tab.");
+                }
+
+                RefreshWinRecycleBinUI();
+            }
+            catch (Exception ex)
+            {
+                LogToTerminal($"Generate Demo Failed: {ex.Message}");
             }
         }
 
@@ -430,9 +517,9 @@ namespace SmartBin.App
                 _selectedWinItem = selectedItem;
 
                 // Update Phase 5 tab details dynamically
-                ExpFileNameText.Text = selectedItem.FileName;
-                ExpOrigPathText.Text = $"Original Path: {selectedItem.OriginalPath}";
-                ExpSizeText.Text = $"Original Size: {selectedItem.Size:N0} bytes";
+                if (ExpFileNameText != null) ExpFileNameText.Text = selectedItem.FileName;
+                if (ExpOrigPathText != null) ExpOrigPathText.Text = $"Original Path: {selectedItem.OriginalPath}";
+                if (ExpSizeText != null) ExpSizeText.Text = $"Original Size: {selectedItem.Size:N0} bytes";
 
                 ResetChecklist();
 
@@ -462,18 +549,21 @@ namespace SmartBin.App
 
         private void ResetChecklist()
         {
-            Check1.Text = "PENDING"; Check1.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128));
-            Check2.Text = "PENDING"; Check2.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128));
-            Check3.Text = "PENDING"; Check3.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128));
-            Check4.Text = "PENDING"; Check4.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128));
-            Check5.Text = "PENDING"; Check5.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128));
-            Check6.Text = "PENDING"; Check6.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128));
+            if (Check1 != null) { Check1.Text = "PENDING"; Check1.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128)); }
+            if (Check2 != null) { Check2.Text = "PENDING"; Check2.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128)); }
+            if (Check3 != null) { Check3.Text = "PENDING"; Check3.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128)); }
+            if (Check4 != null) { Check4.Text = "PENDING"; Check4.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128)); }
+            if (Check5 != null) { Check5.Text = "PENDING"; Check5.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128)); }
+            if (Check6 != null) { Check6.Text = "PENDING"; Check6.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 128, 128)); }
 
-            CommitStatusText.Text = "Status: WAITING FOR PIPELINE CHECKS";
-            CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 0, 139));
+            if (CommitStatusText != null)
+            {
+                CommitStatusText.Text = "Status: WAITING FOR PIPELINE CHECKS";
+                CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 0, 139));
+            }
 
-            CommitExpBtn.IsEnabled = false;
-            KeepCopyBtn.IsEnabled = false;
+            if (CommitExpBtn != null) CommitExpBtn.IsEnabled = false;
+            if (KeepCopyBtn != null) KeepCopyBtn.IsEnabled = false;
         }
 
         private async void OnBeginControlledTestClicked(object sender, RoutedEventArgs e)
@@ -497,30 +587,33 @@ namespace SmartBin.App
                         switch (state)
                         {
                             case ExperimentState.Acquired:
-                                Check1.Text = "✓ PASSED"; Check1.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                                if (Check1 != null) { Check1.Text = "✓ PASSED"; Check1.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0)); }
                                 break;
                             case ExperimentState.AcquisitionVerified:
-                                Check2.Text = "✓ PASSED"; Check2.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
-                                Check3.Text = "✓ PASSED"; Check3.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                                if (Check2 != null) { Check2.Text = "✓ PASSED"; Check2.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0)); }
+                                if (Check3 != null) { Check3.Text = "✓ PASSED"; Check3.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0)); }
                                 break;
                             case ExperimentState.Compressed:
-                                Check4.Text = "✓ PASSED"; Check4.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                                if (Check4 != null) { Check4.Text = "✓ PASSED"; Check4.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0)); }
                                 break;
                             case ExperimentState.CompressionVerified:
-                                Check5.Text = "✓ PASSED"; Check5.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                                if (Check5 != null) { Check5.Text = "✓ PASSED"; Check5.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0)); }
                                 break;
                             case ExperimentState.RestorationVerified:
-                                Check6.Text = "✓ PASSED"; Check6.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                                if (Check6 != null) { Check6.Text = "✓ PASSED"; Check6.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0)); }
                                 break;
                         }
                     });
                 });
 
-                CommitStatusText.Text = "Status: READY FOR COMMIT";
-                CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                if (CommitStatusText != null)
+                {
+                    CommitStatusText.Text = "Status: READY FOR COMMIT";
+                    CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
+                }
 
-                CommitExpBtn.IsEnabled = true;
-                KeepCopyBtn.IsEnabled = true;
+                if (CommitExpBtn != null) CommitExpBtn.IsEnabled = true;
+                if (KeepCopyBtn != null) KeepCopyBtn.IsEnabled = true;
 
                 LogToTerminal($"✓ Pipeline completed successfully. Item is verified and ready for commit.");
                 LogToTerminal($"Original: {_currentExperiment.OriginalSize:N0} bytes -> Compressed: {_currentExperiment.CompressedSize:N0} bytes.");
@@ -529,8 +622,11 @@ namespace SmartBin.App
             {
                 LogToTerminal($"❌ Experiment Pipeline Failed: {ex.Message}");
                 LogToTerminal("Rollback executed. Original Recycle Bin item remains completely untouched.");
-                CommitStatusText.Text = "Status: PIPELINE FAILED / ROLLBACK COMPLETED";
-                CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 139, 0, 0));
+                if (CommitStatusText != null)
+                {
+                    CommitStatusText.Text = "Status: PIPELINE FAILED / ROLLBACK COMPLETED";
+                    CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 139, 0, 0));
+                }
             }
         }
 
@@ -540,19 +636,19 @@ namespace SmartBin.App
 
             try
             {
-                bool mutationSelected = MutationCheck.IsOn;
+                bool mutationSelected = MutationCheck != null && MutationCheck.IsOn;
                 LogToTerminal("Committing experiment...");
 
                 await _experimentEngine.CommitExperimentAsync(_currentExperiment, mutationSelected, state =>
                 {
                     DispatcherQueue.TryEnqueue(() =>
                     {
-                        if (state == ExperimentState.Committed)
+                        if (state == ExperimentState.Committed && CommitStatusText != null)
                         {
                             CommitStatusText.Text = "Status: COMMITTED SUCCESSFULLY";
                             CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
-                            CommitExpBtn.IsEnabled = false;
-                            KeepCopyBtn.IsEnabled = false;
+                            if (CommitExpBtn != null) CommitExpBtn.IsEnabled = false;
+                            if (KeepCopyBtn != null) KeepCopyBtn.IsEnabled = false;
                         }
                     });
                 });
@@ -588,12 +684,12 @@ namespace SmartBin.App
                 {
                     DispatcherQueue.TryEnqueue(() =>
                     {
-                        if (state == ExperimentState.Committed)
+                        if (state == ExperimentState.Committed && CommitStatusText != null)
                         {
                             CommitStatusText.Text = "Status: COMMITTED SUCCESSFULLY (NO MUTATION)";
                             CommitStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 128, 0));
-                            CommitExpBtn.IsEnabled = false;
-                            KeepCopyBtn.IsEnabled = false;
+                            if (CommitExpBtn != null) CommitExpBtn.IsEnabled = false;
+                            if (KeepCopyBtn != null) KeepCopyBtn.IsEnabled = false;
                         }
                     });
                 });
@@ -614,30 +710,68 @@ namespace SmartBin.App
 
             try
             {
-                // Sync UI inputs with the active settings policy model
-                if (ModeOffRadio.IsChecked == true) _autoEngine.Settings.Mode = AutoOptimizationMode.Off;
-                else if (ModeNotifyRadio.IsChecked == true) _autoEngine.Settings.Mode = AutoOptimizationMode.NotifyMe;
-                else if (ModeAutoRadio.IsChecked == true) _autoEngine.Settings.Mode = AutoOptimizationMode.Automatic;
+                bool isValid = true;
+                string errorMessage = "";
 
-                if (double.TryParse(LowThresholdInput.Text, out var low)) _autoEngine.Settings.LowPressureThresholdPercentage = low;
-                if (double.TryParse(CritThresholdInput.Text, out var crit)) _autoEngine.Settings.CriticalPressureThresholdPercentage = crit;
-                if (double.TryParse(TargetPercentInput.Text, out var target)) _autoEngine.Settings.TargetFreeSpacePercentage = target;
-
-                if (long.TryParse(SafetyFloorInput.Text, out var floorGb))
+                // Parse and validate numeric settings inputs with immediate explainability
+                if (!double.TryParse(LowThresholdInput.Text, out var low) || low <= 0 || low >= 100)
                 {
-                    _autoEngine.Settings.MinimumSafetyMarginBytes = floorGb * 1024L * 1024 * 1024;
+                    isValid = false;
+                    errorMessage = "Low Pressure Threshold must be a percentage between 1% and 99%.";
+                }
+                else if (!double.TryParse(CritThresholdInput.Text, out var crit) || crit <= 0 || crit >= low)
+                {
+                    isValid = false;
+                    errorMessage = $"Critical Pressure Threshold must be between 1% and strictly less than Low Threshold ({low}%).";
+                }
+                else if (!double.TryParse(TargetPercentInput.Text, out var target) || target <= low || target >= 100)
+                {
+                    isValid = false;
+                    errorMessage = $"Target Free-Space Percentage must be strictly greater than Low Threshold ({low}%).";
+                }
+                else if (!long.TryParse(SafetyFloorInput.Text, out var floorGb) || floorGb < 1 || floorGb > 1000)
+                {
+                    isValid = false;
+                    errorMessage = "Hard Safety Floor must be a positive integer between 1 GB and 1000 GB.";
+                }
+                else if (MaxItemsInput != null && (!int.TryParse(MaxItemsInput.Text, out var maxItems) || maxItems < 1 || maxItems > 100))
+                {
+                    isValid = false;
+                    errorMessage = "Max items per session must be between 1 and 100.";
                 }
 
-                _autoEngine.Settings.PauseOnBattery = BatteryPauseToggle.IsOn;
+                if (!isValid)
+                {
+                    if (SettingsValidationBorder != null) SettingsValidationBorder.Visibility = Visibility.Visible;
+                    if (SettingsValidationErrorText != null) SettingsValidationErrorText.Text = errorMessage;
 
-                if (int.TryParse(MaxItemsInput.Text, out var max)) _autoEngine.Settings.MaxItemsPerSession = max;
+                    // Automatically default mode to OFF if configuration is untrusted
+                    _autoEngine.Settings.Mode = AutoOptimizationMode.Off;
+                    if (ModeOffRadio != null) ModeOffRadio.IsChecked = true;
+                    return;
+                }
 
-                LogToTerminal("✓ Settings saved successfully.");
+                if (SettingsValidationBorder != null) SettingsValidationBorder.Visibility = Visibility.Collapsed;
+
+                // Apply verified valid settings
+                _autoEngine.Settings.LowPressureThresholdPercentage = double.Parse(LowThresholdInput.Text);
+                _autoEngine.Settings.CriticalPressureThresholdPercentage = double.Parse(CritThresholdInput.Text);
+                _autoEngine.Settings.TargetFreeSpacePercentage = double.Parse(TargetPercentInput.Text);
+                _autoEngine.Settings.MinimumSafetyMarginBytes = long.Parse(SafetyFloorInput.Text) * 1024L * 1024 * 1024;
+
+                if (BatteryPauseToggle != null) _autoEngine.Settings.PauseOnBattery = BatteryPauseToggle.IsOn;
+                if (MaxItemsInput != null) _autoEngine.Settings.MaxItemsPerSession = int.Parse(MaxItemsInput.Text);
+
+                if (ModeOffRadio != null && ModeOffRadio.IsChecked == true) _autoEngine.Settings.Mode = AutoOptimizationMode.Off;
+                else if (ModeNotifyRadio != null && ModeNotifyRadio.IsChecked == true) _autoEngine.Settings.Mode = AutoOptimizationMode.NotifyMe;
+                else if (ModeAutoRadio != null && ModeAutoRadio.IsChecked == true) _autoEngine.Settings.Mode = AutoOptimizationMode.Automatic;
+
+                LogToTerminal("✓ Settings updated and validated successfully.");
                 RefreshUI();
             }
             catch (Exception ex)
             {
-                LogToTerminal($"Settings Error: {ex.Message}");
+                LogToTerminal($"Settings Validation Error: {ex.Message}");
             }
         }
 
