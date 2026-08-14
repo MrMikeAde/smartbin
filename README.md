@@ -204,10 +204,11 @@ Every restored file is verified against its pre-compression baseline hash before
 
 ---
 
-## Verification & Test Baseline
+## Verification & Test Baseline (Release Candidate v1.0-rc1)
 
 SmartBin's reliability is validated by an automated test suite:
 
+* **Current Version:** `v1.0-rc1` (Release Candidate 1)
 * **104 total automated tests**
 * **104 PASS**
 * **0 FAIL**
